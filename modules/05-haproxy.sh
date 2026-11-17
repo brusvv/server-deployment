@@ -32,8 +32,13 @@ grep -Fq -- "$config" <<< "$unit_definition" ||
  die "Systemd unit $service does not reference $config; refusing to reload a different config."
 grep -Fq -- "$binary" <<< "$unit_definition" ||
  die "Systemd unit $service does not use $binary; configure HAPROXY_BIN to match the active service."
-systemctl is-active --quiet "$service" ||
- { [[ "$SD_MODE" == check || "$SD_DRY_RUN" == 1 ]] && warn "$service is not active; a reload will require an active service." || die "$service is not active."; }
+if ! systemctl is-active --quiet "$service"; then
+ if [[ "$SD_MODE" == check || "$SD_DRY_RUN" == 1 ]]; then
+  warn "$service is not active; a reload will require an active service."
+ else
+  die "$service is not active."
+ fi
+fi
 
 have python3 || die "python3 is required for safe HAProxy config editing."
 have ss || die "ss (iproute2) is required for listener discovery."
@@ -153,12 +158,12 @@ register_backend_endpoint() {
  fi
  backend_endpoint_owner["$endpoint"]="$label"
 }
-register_backend_endpoint "Xray" "$XRAY_LOOPBACK_HOST" "$XRAY_LOOPBACK_PORT"
-register_backend_endpoint "MTProto" "$MTPROTO_BACKEND_HOST" "$MTPROTO_BACKEND_PORT"
-register_backend_endpoint "WEB HTTP" "$WEB_HTTP_HOST" "$WEB_HTTP_PORT"
-register_backend_endpoint "WEB TLS" "$WEB_TLS_HOST" "$WEB_TLS_PORT"
-register_backend_endpoint "Selfmask backend" "$SELFSTEAL_BACKEND_HOST" "$SELFSTEAL_BACKEND_PORT"
-register_backend_endpoint "Static backend" "$STATIC_BACKEND_HOST" "$STATIC_BACKEND_PORT"
+register_backend_endpoint "Xray" "${DISCOVERED[XRAY_LOOPBACK_HOST]}" "$XRAY_LOOPBACK_PORT"
+register_backend_endpoint "MTProto" "${DISCOVERED[MTPROTO_BACKEND_HOST]}" "$MTPROTO_BACKEND_PORT"
+register_backend_endpoint "WEB HTTP" "${DISCOVERED[WEB_HTTP_HOST]}" "$WEB_HTTP_PORT"
+register_backend_endpoint "WEB TLS" "${DISCOVERED[WEB_TLS_HOST]}" "$WEB_TLS_PORT"
+register_backend_endpoint "Selfmask backend" "${DISCOVERED[SELFSTEAL_BACKEND_HOST]}" "$SELFSTEAL_BACKEND_PORT"
+register_backend_endpoint "Static backend" "${DISCOVERED[STATIC_BACKEND_HOST]}" "$STATIC_BACKEND_PORT"
 
 info "Selected target port layout:"
 for key in PUBLIC_HTTP_PORT PUBLIC_HTTPS_PORT XRAY_LOOPBACK_PORT MTPROTO_BACKEND_PORT WEB_TLS_PORT WEB_HTTP_PORT SELFSTEAL_BACKEND_PORT STATIC_BACKEND_PORT SELFSTEAL_PORT; do
@@ -191,6 +196,7 @@ if (( READY == 0 )); then
 fi
 
 tmp="$(mktemp "${config}.server-deployment.XXXXXX")"
+# shellcheck disable=SC2329 # Invoked by EXIT trap.
 cleanup(){ rm -f -- "$tmp" "${new_file:-}" "${restore_file:-}"; }
 trap cleanup EXIT
 
