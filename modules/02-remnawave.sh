@@ -5,8 +5,6 @@ require_root
 cat <<'EOF'
 eGamesAPI is the installer entry point; its installation flow installs/configures Remnawave.
 Do not install a second independent Remnawave stack here.
-Official upstream command (tracks main; review before production use):
-  bash <(curl -Ls https://raw.githubusercontent.com/eGamesAPI/remnawave-reverse-proxy/refs/heads/main/install_remnawave.sh)
 Pin and review the upstream installer before execution. Confirm public TCP 80/443 are available.
 This scaffold executes only a local reviewed copy supplied via EGAMES_INSTALLER_LOCAL.
 EOF
