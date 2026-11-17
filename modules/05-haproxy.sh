@@ -229,6 +229,7 @@ chown --reference="$config" "$new_file"
 mv -f -- "$new_file" "$config"
 
 if systemctl reload "$service" && systemctl is-active --quiet "$service" &&
+   haproxy_bind_ready "$PUBLIC_HTTP_PORT" && haproxy_bind_ready "$PUBLIC_HTTPS_PORT" &&
    haproxy_bind_ready "$WEB_TLS_PORT" && haproxy_bind_ready "$SELFSTEAL_PORT"; then
  rm -f -- "$SD_PORT_PLAN_FILE"
  info "HAProxy config updated and $service reloaded successfully."
