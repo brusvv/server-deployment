@@ -33,7 +33,8 @@ systemctl is-active --quiet "$service" ||
 
 have python3 || die "python3 is required for safe HAProxy config editing."
 tmp="$(mktemp "${config}.server-deployment.XXXXXX")"
-trap 'rm -f "$tmp"' EXIT
+cleanup(){ rm -f -- "$tmp" "${new_file:-}" "${restore_file:-}"; }
+trap cleanup EXIT
 
 python3 - "$config" "$tmp" "$domains" "$WEB_DOMAIN" "$XRAY_LOOPBACK_HOST" "$XRAY_LOOPBACK_PORT" <<'PY'
 import re
@@ -61,7 +62,8 @@ if not xray_port.isdigit() or not (1 <= int(xray_port) <= 65535):
     raise SystemExit("ERROR: invalid XRAY_LOOPBACK_PORT")
 
 path = Path(source)
-text = path.read_text()
+with open(path, "r", newline="") as handle:
+    text = handle.read()
 lines = text.splitlines(keepends=True)
 header_re = re.compile(r"^(?:global|defaults|frontend\s+\S+|backend\s+\S+|listen\s+\S+)\s*(?:#.*)?$")
 headers = [i for i, line in enumerate(lines) if header_re.match(line.rstrip("\r\n"))]
@@ -91,7 +93,8 @@ indent = "    "
 if acl_matches:
     idx = acl_matches[0]
     indent = re.match(r"^\s*", block[idx]).group(0)
-    block[idx] = f"{indent}acl remnawave_sni req.ssl_sni -i {' '.join(domains)}\n"
+    line_ending = "\r\n" if block[idx].endswith("\r\n") else "\n"
+    block[idx] = f"{indent}acl remnawave_sni req.ssl_sni -i {' '.join(domains)}{line_ending}"
 else:
     insert_at = route_matches[0] if route_matches else default_matches[0]
     block.insert(insert_at, f"{indent}acl remnawave_sni req.ssl_sni -i {' '.join(domains)}\n")
@@ -113,10 +116,11 @@ for i in range(bstart + 1, bend):
 if len(server_matches) != 1:
     raise SystemExit(f"ERROR: expected exactly one 'server remnawave' in backend remnawave_xray, found {len(server_matches)}")
 i, match = server_matches[0]
-newline = "\r\n" if lines[i].endswith("\r\n") else "\n"
+newline = "\r\n" if lines[i].endswith("\r\n") else ("\n" if lines[i].endswith("\n") else "")
 lines[i] = f"{match.group(1)}{xray_host}:{xray_port}{match.group(3)}{newline}"
 
-Path(target).write_text("".join(lines))
+with open(target, "w", newline="") as handle:
+    handle.write("".join(lines))
 PY
 
 "$binary" -c -q -f "$tmp" || die "HAProxy rejected the proposed config; active config was not changed."
@@ -144,8 +148,6 @@ cp -a -- "$config" "$backup"
 chmod go-rwx "$backup" 2>/dev/null || true
 new_file="${config}.server-deployment-new.$$"
 restore_file="${config}.server-deployment-restore.$$"
-cleanup(){ rm -f -- "$new_file" "$restore_file"; }
-trap cleanup EXIT
 install -m "$(stat -c '%a' "$config")" "$tmp" "$new_file"
 chown --reference="$config" "$new_file"
 mv -f -- "$new_file" "$config"
