@@ -7,12 +7,13 @@ SD_PORT_PLAN_FILE="${SD_PORT_PLAN_FILE:-${STATE_DIR:-/var/lib/server-deployment}
 discover_haproxy_ports() {
   local config="$1"
   [[ -r "$config" ]] || die "Cannot read HAProxy config for discovery: $config"
-  python3 - "$config" <<'PY'
+  python3 - "$config" "${XRAY_LOOPBACK_HOST:-127.0.0.1}" "${XRAY_LOOPBACK_PORT:-1443}" <<'PY'
 import re
 import sys
 from pathlib import Path
 
 text = Path(sys.argv[1]).read_text()
+default_xray_host, default_xray_port = sys.argv[2], int(sys.argv[3])
 lines = text.splitlines()
 sections = {}
 current = None
@@ -76,10 +77,21 @@ if web_tls_bind_port != web_tls_endpoint[1]:
 selfsteal_backend_endpoint = server("backend", "mtproxyl_site", "site")
 static_backend_endpoint = server("backend", "mtproxyl_static", "static")
 
+xray_sections = [v for (k, n), v in sections.items() if k == "backend" and n == "remnawave_xray"]
+if len(xray_sections) > 1:
+    raise SystemExit("discovery error: expected at most one backend remnawave_xray")
+if xray_sections:
+    xray_endpoint = server("backend", "remnawave_xray", "remnawave")
+    xray_backend_present = "true"
+else:
+    xray_endpoint = (default_xray_host, default_xray_port)
+    xray_backend_present = "false"
+
 values = {
     "PUBLIC_HTTP_PORT": bind("mtproxyl_http"),
     "PUBLIC_HTTPS_PORT": bind("mtproxyl_public"),
-    "XRAY_LOOPBACK": server("backend", "remnawave_xray", "remnawave"),
+    "XRAY_BACKEND_PRESENT": xray_backend_present,
+    "XRAY_LOOPBACK": xray_endpoint,
     "MTPROTO_BACKEND": server("backend", "mtproxyl_mtproto", "mtproto"),
     "WEB_TLS": web_tls_endpoint,
     "WEB_HTTP": server("backend", "mtproxyl_web", "web"),
