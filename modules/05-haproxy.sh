@@ -87,7 +87,7 @@ confirm_tty() {
 }
 haproxy_bind_ready() {
  local port="$1"
- ss -H -lntp "( sport = :$port )" 2>/dev/null | grep -Eq 'users:\\(\\("haproxy",'
+ ss -H -lntp "( sport = :$port )" 2>/dev/null | grep -Eq 'users:\(\("haproxy",'
 }
 
 # A pending plan is loaded only as the starting point for manual editing.
