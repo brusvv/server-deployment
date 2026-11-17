@@ -2,7 +2,7 @@
 
 Safety-first deployment orchestrator for a single-server stack built around **eGamesAPI Remnawave Reverse Proxy**, Remnawave/Xray, MTProxyL/Telemt and HAProxy.
 
-> **Status: early development / integration scaffold.** The orchestration, configuration model, preflight checks, backup framework and validation commands are provided. External installers and Remnawave Config Profile mutation remain explicit integration points until their exact upstream versions and API contracts are pinned and tested.
+> **Status: early development / integration scaffold.** The deployment orchestration and MTProxyL HAProxy integration are under active development. External installers and Remnawave Config Profile mutation remain explicit integration points until their exact upstream versions and API contracts are pinned and tested.
 
 ## Deployment order
 
@@ -11,7 +11,7 @@ Safety-first deployment orchestrator for a single-server stack built around **eG
 3. **eGamesAPI + Remnawave** — use the official eGamesAPI installer; it installs/configures Remnawave as part of its flow. Do not install a second Remnawave stack.
 4. **Network adapter** — prepare and verify the intended Xray inbound change to 127.0.0.1:1443 and preserve the eGamesAPI Nginx Unix-socket fallback. API mutation is disabled until a tested API contract is available.
 5. **MTProxyL** — install the selected, reviewed MTProxyL version and configure internal listeners.
-6. **HAProxy** — render and validate a starter config; merge/apply only after review.
+6. **HAProxy** — update only the Remnawave SNI ACL and Xray backend in MTProxyL's active custom config, validate it, back up the original and reload MTProxyL HAProxy.
 7. **Validation** — check DNS, ports and services.
 8. **Backup** — create/list/restore project-managed backups.
 
@@ -48,14 +48,17 @@ Default mode is check-only. Execute one stage explicitly:
 
     sudo ./install.sh --run --stage preflight
     sudo ./install.sh --run --stage system
+    sudo ./install.sh --check --stage haproxy
+    sudo ./install.sh --run --stage haproxy
+
+The HAProxy stage only applies when the MTProxyL custom HAProxy config is already active and its service is running.
 
 ## Layout
 
-- config/ — domains, ports and service paths.
+- config/ — Remnawave SNI domains, ports and service paths.
 - lib/ — shared Bash helpers and config loading.
 - modules/ — ordered deployment stages.
 - checks/ — DNS, port and service diagnostics.
-- templates/ — generated configuration templates.
 - tests/ — static shell checks.
 - .github/workflows/ — CI lint and syntax checks.
 
@@ -79,7 +82,7 @@ Default mode is check-only. Execute one stage explicitly:
 
     Xray fallback -> eGamesAPI Nginx Unix socket
 
-The HAProxy template is a starting point, not a drop-in replacement for an existing MTProxyL-managed config. Review and merge it with the actual installed configuration before activation.
+The HAProxy stage is an adapter for the MTProxyL-managed configuration, not a standalone HAProxy installer. Set `REMNAWAVE_SNI_DOMAINS` in `config/domains.env` as a space-separated list (for example, `gateway.example.com sync.example.com storage.example.com`) and set `WEB_DOMAIN` separately. The stage requires MTProxyL to use `FRONT_SERVER='haproxy'` with `NGINX_CUSTOM_ENABLED='true'`. It verifies that the systemd unit references the configured active file, changes only the `remnawave_sni` ACL and the `server remnawave` endpoint in `backend remnawave_xray`, validates the candidate with the configured MTProxyL HAProxy binary, creates a timestamped backup and calls `systemctl reload`. It does not regenerate the MTProxyL config or modify other frontends/backends. If validation fails, the active file is left untouched; if reload fails, the previous file is restored.
 
 ## Safety
 
