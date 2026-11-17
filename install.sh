@@ -3,7 +3,11 @@ set -Eeuo pipefail
 
 # Bootstrap mode: supports both a local checkout and:
 #   bash <(curl -fsSL https://raw.githubusercontent.com/brusvv/server-deployment/main/install.sh)
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" 2>/dev/null && pwd -P)"
+SCRIPT_SOURCE="${BASH_SOURCE[0]:-}"
+SCRIPT_DIR=""
+if [[ -n "$SCRIPT_SOURCE" ]]; then
+  SCRIPT_DIR="$(cd -- "$(dirname -- "$SCRIPT_SOURCE")" 2>/dev/null && pwd -P)"
+fi
 REPO_URL="${SD_REPO_URL:-https://github.com/brusvv/server-deployment.git}"
 INSTALL_DIR="${SD_INSTALL_DIR:-/opt/server-deployment}"
 
@@ -44,7 +48,9 @@ while (($#)); do
  esac; shift
 done
 export SD_MODE="$MODE" SD_DRY_RUN="$DRY_RUN"
+set -a
 load_config
+set +a
 init_logging
 run_stage(){ local name="$1" file="$2"; info "===== $name ====="; bash "$ROOT_DIR/modules/$file"; }
 if [[ "$STAGE" == all ]]; then
