@@ -14,6 +14,6 @@ for domain in "${remnawave_domains[@]}" "$WEB_DOMAIN"; do
  [[ -z "${seen_domains[$domain]:-}" ]] || die "Duplicate domain: $domain"
  seen_domains["$domain"]=1
 done
-"$SD_ROOT/checks/domains.sh"
-"$SD_ROOT/checks/ports.sh"
+bash "$SD_ROOT/checks/domains.sh"
+bash "$SD_ROOT/checks/ports.sh"
 info "Preflight completed"
