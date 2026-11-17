@@ -151,7 +151,7 @@ for line in output.splitlines():
     except ValueError:
         continue
     local_host = local_host.strip("[]")
-    process = re.search(r'users:\\(\\("([^"]+)"', line)
+    process = re.search(r'users:\(\("([^"]+)"', line)
     if process_hint and (not process or process_hint not in process.group(1)):
         continue
     if local_port == port and (local_host in wildcards or local_host in requested_set):
