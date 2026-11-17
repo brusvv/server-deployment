@@ -137,7 +137,9 @@ done
 
 declare -A backend_endpoint_owner=()
 register_backend_endpoint() {
- local label="$1" host="$2" port="$3" endpoint="${host}|${port}" previous="${backend_endpoint_owner[$endpoint]:-}"
+ local label="$1" host="$2" port="$3" endpoint previous
+ endpoint="${host}|${port}"
+ previous="${backend_endpoint_owner[$endpoint]:-}"
  if [[ -n "$previous" ]]; then
   if [[ "$label" == "Static backend" && "$previous" == "Selfmask backend" ]] ||
      [[ "$label" == "Selfmask backend" && "$previous" == "Static backend" ]]; then
