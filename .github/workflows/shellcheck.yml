@@ -7,7 +7,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install ShellCheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
-      - name: Lint shell scripts
-        run: find . -type f -name '*.sh' -print0 | xargs -0 shellcheck
-      - name: Check Bash syntax
-        run: find . -type f -name '*.sh' -print0 | while IFS= read -r -d '' file; do bash -n "$file"; done
+      - name: Run static and regression checks
+        run: bash tests/shellcheck.sh
