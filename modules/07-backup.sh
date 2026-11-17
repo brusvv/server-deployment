@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 source "$SD_ROOT/lib/common.sh"
+source "$SD_ROOT/lib/config.sh"
+load_config
 require_root
 action="${1:-create}"
 install -d -m 0700 "$BACKUP_DIR"
