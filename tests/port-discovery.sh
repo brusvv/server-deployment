@@ -25,6 +25,9 @@ assert_eq 8444 "${found[SELFSTEAL_PORT]}" "Selfmask port"
 
 tmp="$(mktemp)"
 trap 'rm -f "$tmp"' EXIT
+# shellcheck disable=SC2329 # Invoked by EXIT trap.
+cleanup(){ rm -f -- "$tmp"; }
+trap cleanup EXIT
 python3 "$ROOT/lib/haproxy_config.py" "$ROOT/tests/fixtures/haproxy.cfg" "$tmp" \
   --domains "gateway.example.com sync.example.com" --web-domain "cdn.example.com" \
   --http-port 8080 --https-port 8443 --xray-host 127.0.0.1 --xray-port 2443 \
