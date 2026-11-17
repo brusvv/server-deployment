@@ -23,6 +23,21 @@ At the time of this check, the script declares `SCRIPT_VERSION="3.8.4"`, while t
 
 **Why this order?** eGamesAPI is first because its installation flow includes Remnawave and expects public HTTPS ports to be available. After installation, Xray can be moved to loopback port 1443. MTProxyL/HAProxy can then own public 80/443.
 
+## Branch scope and bootstrap behavior
+
+The command below tracks **`main`**. It does not install the separate
+`feature/http-redirect-selfsteal-website` branch. That feature branch has its
+own README section describing the planned HTTP redirect and SelfSteal website
+work; those features are not part of the `main` bootstrap unless they are
+merged into `main`.
+
+The remote bootstrap supports both execution from a local checkout and
+`curl | bash`. When the script is read from standard input, it has no
+`BASH_SOURCE[0]` path; it therefore clones the repository and re-executes
+the local copy. Configuration loaded by the top-level installer is exported
+to child stage processes so modules receive the configured domains, ports
+and service paths.
+
 ## Quick start
 
 Remote bootstrap (clones the repository to `/opt/server-deployment` and starts the local installer):
