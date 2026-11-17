@@ -27,11 +27,11 @@ At the time of this check, the script declares `SCRIPT_VERSION="3.8.4"`, while t
 
 Remote bootstrap (clones the repository to `/opt/server-deployment` and starts the local installer):
 
-    bash <(curl -fsSL https://raw.githubusercontent.com/brusvv/server-deployment/main/install.sh) --check
+    curl -fsSL https://raw.githubusercontent.com/brusvv/server-deployment/main/install.sh | bash -s -- --check
 
 For an explicit execution run, pass `--run` (the default is check-only):
 
-    sudo bash <(curl -fsSL https://raw.githubusercontent.com/brusvv/server-deployment/main/install.sh) --run
+    curl -fsSL https://raw.githubusercontent.com/brusvv/server-deployment/main/install.sh | sudo bash -s -- --run
 
 You can override the clone location with `SD_INSTALL_DIR=/path/to/server-deployment`.
 
@@ -85,7 +85,7 @@ The HAProxy template is a starting point, not a drop-in replacement for an exist
 
 - No automatic firewall changes or service stops.
 - No secrets belong in tracked files.
-- No unpinned remote script is downloaded and executed.
+- Third-party installers are not downloaded and executed automatically. The optional bootstrap command above fetches this project's own installer from `main`; review it before running and pin a commit for reproducible deployments.
 - Existing files are backed up before replacement by project-managed operations.
 - No Remnawave Config Profile is modified until its exact API schema, profile and inbound identifiers are verified.
 - Check-only is the default.
