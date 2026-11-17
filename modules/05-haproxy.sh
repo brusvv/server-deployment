@@ -69,11 +69,12 @@ prompt_value() {
 }
 prompt_menu() {
  local answer
- echo
- echo "HAProxy port setup"
- echo "  1 - Use the recommended layout discovered from the active MTProxyL config"
- echo "  2 - Enter ports manually (unready services will be saved as a pending plan)"
- echo "  0 - Exit without changes"
+ {
+  printf '\nHAProxy port setup\n'
+  printf '  1 - Use the recommended layout discovered from the active MTProxyL config\n'
+  printf '  2 - Enter ports manually (unready services will be saved as a pending plan)\n'
+  printf '  0 - Exit without changes\n'
+ } >/dev/tty
  read -r -p "Select [1/2/0]: " answer </dev/tty
  printf '%s' "$answer"
 }
