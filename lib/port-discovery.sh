@@ -66,12 +66,20 @@ def bind(section):
         raise SystemExit(f"discovery error: expected one TCP bind in frontend {section}, found {len(found)}")
     return found[0]
 
+web_tls_endpoint = server("backend", "mtproxyl_web_tls", "web_tls")
+web_tls_bind_port = bind("mtproxyl_web")
+if web_tls_bind_port != web_tls_endpoint[1]:
+    raise SystemExit(
+        "discovery error: frontend mtproxyl_web bind port does not match "
+        "backend mtproxyl_web_tls server port"
+    )
+
 values = {
     "PUBLIC_HTTP_PORT": bind("mtproxyl_http"),
     "PUBLIC_HTTPS_PORT": bind("mtproxyl_public"),
     "XRAY_LOOPBACK": server("backend", "remnawave_xray", "remnawave"),
     "MTPROTO_BACKEND": server("backend", "mtproxyl_mtproto", "mtproto"),
-    "WEB_TLS": server("backend", "mtproxyl_web_tls", "web_tls"),
+    "WEB_TLS": web_tls_endpoint,
     "WEB_HTTP": server("backend", "mtproxyl_web", "web"),
     "SELFSTEAL_PORT": bind("mtproxyl_selfmask"),
 }
