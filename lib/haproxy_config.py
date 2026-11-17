@@ -123,13 +123,13 @@ def patch(args):
     if any(line.strip() == "backend remnawave_xray" for line in lines):
         replace_server(lines, section, "remnawave_xray", "remnawave", args.xray_host, args.xray_port)
     else:
-        if lines and not lines[-1].endswith("\\n"):
-            lines[-1] += "\\n"
+        if lines and not lines[-1].endswith("\n"):
+            lines[-1] += "\n"
         lines.extend([
-            "\\n",
-            "backend remnawave_xray\\n",
-            "    mode tcp\\n",
-            f"    server remnawave {args.xray_host}:{args.xray_port}\\n",
+            "\n",
+            "backend remnawave_xray\n",
+            "    mode tcp\n",
+            f"    server remnawave {args.xray_host}:{args.xray_port}\n",
         ])
     replace_server(lines, section, "mtproxyl_mtproto", "mtproto", args.mtproto_host, args.mtproto_port)
     replace_server(lines, section, "mtproxyl_web_tls", "web_tls", args.web_tls_host, args.web_tls_port)
