@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 source "$SD_ROOT/lib/common.sh"
 source "$SD_ROOT/lib/config.sh"
+source "$SD_ROOT/lib/port-discovery.sh"
 require_root
 require_domains
 
@@ -9,7 +10,6 @@ config="${HAPROXY_CONFIG:?HAPROXY_CONFIG is not set}"
 binary="${HAPROXY_BIN:-haproxy}"
 service="${HAPROXY_SERVICE:?HAPROXY_SERVICE is not set}"
 settings="${MTPROXYL_SETTINGS:-$MTProxyL_DIR/settings.conf}"
-domains="$REMNAWAVE_SNI_DOMAINS"
 
 # This stage intentionally patches the active MTProxyL custom config.
 # It never renders or replaces the complete HAProxy configuration.
@@ -32,116 +32,148 @@ grep -Fq -- "$config" <<< "$unit_definition" ||
 grep -Fq -- "$binary" <<< "$unit_definition" ||
  die "Systemd unit $service does not use $binary; configure HAPROXY_BIN to match the active service."
 systemctl is-active --quiet "$service" ||
- { [[ "$SD_MODE" == check || "$SD_DRY_RUN" == 1 ]] && warn "$service is not active; reload will require an active service." || die "$service is not active."; }
+ { [[ "$SD_MODE" == check || "$SD_DRY_RUN" == 1 ]] && warn "$service is not active; a reload will require an active service." || die "$service is not active."; }
 
 have python3 || die "python3 is required for safe HAProxy config editing."
+have ss || die "ss (iproute2) is required for listener discovery."
+
+declare -A DISCOVERED=()
+while IFS='=' read -r key value; do
+ case "$key" in
+  PUBLIC_HTTP_PORT|PUBLIC_HTTPS_PORT|XRAY_LOOPBACK_HOST|XRAY_LOOPBACK_PORT|MTPROTO_BACKEND_HOST|MTPROTO_BACKEND_PORT|WEB_TLS_HOST|WEB_TLS_PORT|WEB_HTTP_HOST|WEB_HTTP_PORT|SELFSTEAL_PORT)
+   DISCOVERED["$key"]="$value"
+   ;;
+  *) die "Unexpected value returned by HAProxy discovery: $key";;
+ esac
+done < <(discover_haproxy_ports "$config")
+
+for key in PUBLIC_HTTP_PORT PUBLIC_HTTPS_PORT XRAY_LOOPBACK_HOST XRAY_LOOPBACK_PORT MTPROTO_BACKEND_HOST MTPROTO_BACKEND_PORT WEB_TLS_HOST WEB_TLS_PORT WEB_HTTP_HOST WEB_HTTP_PORT SELFSTEAL_PORT; do
+ [[ -n "${DISCOVERED[$key]:-}" ]] || die "Discovery did not return $key."
+done
+
+if [[ "$SD_MODE" == check || "$SD_DRY_RUN" == 1 ]]; then
+ info "Discovered HAProxy port layout:"
+ for key in PUBLIC_HTTP_PORT PUBLIC_HTTPS_PORT XRAY_LOOPBACK_PORT MTPROTO_BACKEND_PORT WEB_TLS_PORT WEB_HTTP_PORT SELFSTEAL_PORT; do
+  info "  $key=${DISCOVERED[$key]}"
+ done
+ info "Check-only mode: no port plan or active config was changed."
+ exit 0
+fi
+
+[[ -r /dev/tty && -w /dev/tty ]] || die "Interactive HAProxy setup requires a terminal (/dev/tty). Run this stage from an interactive shell."
+prompt_value() {
+ local name="$1" current="$2" answer
+ read -r -p "$name [$current]: " answer </dev/tty
+ printf '%s' "${answer:-$current}"
+}
+prompt_menu() {
+ local answer
+ echo
+ echo "HAProxy port setup"
+ echo "  1 - Use the recommended layout discovered from the active MTProxyL config"
+ echo "  2 - Enter ports manually (unready services will be saved as a pending plan)"
+ echo "  0 - Exit without changes"
+ read -r -p "Select [1/2/0]: " answer </dev/tty
+ printf '%s' "$answer"
+}
+confirm_tty() {
+ local answer
+ [[ "$SD_MODE" == run && "$SD_DRY_RUN" == 0 ]] || return 1
+ [[ "${SD_ASSUME_YES:-0}" == 1 ]] && return 0
+ read -r -p "$1 [y/N] " answer </dev/tty
+ [[ "$answer" =~ ^[Yy]$ ]]
+}
+
+# A pending plan is loaded only as the starting point for manual editing.
+HAS_PENDING=0
+if [[ -f "$SD_PORT_PLAN_FILE" && ! -L "$SD_PORT_PLAN_FILE" ]]; then
+ load_port_plan
+ HAS_PENDING=1
+ info "A pending port plan exists; its values will be offered as manual-mode defaults."
+fi
+
+choice="$(prompt_menu)"
+case "$choice" in
+ 0) info "HAProxy setup cancelled; no changes made."; exit 0;;
+ 1)
+  for key in "${!DISCOVERED[@]}"; do printf -v "$key" '%s' "${DISCOVERED[$key]}"; done
+  info "Using the layout discovered in the active HAProxy config."
+  ;;
+  2)
+  # If a pending plan exists, it supplies defaults; otherwise use discovery.
+  if (( HAS_PENDING == 0 )); then
+   for key in "${!DISCOVERED[@]}"; do printf -v "$key" '%s' "${DISCOVERED[$key]}"; done
+  fi
+  PUBLIC_HTTP_PORT="$(prompt_value PUBLIC_HTTP_PORT "$PUBLIC_HTTP_PORT")"
+  PUBLIC_HTTPS_PORT="$(prompt_value PUBLIC_HTTPS_PORT "$PUBLIC_HTTPS_PORT")"
+  XRAY_LOOPBACK_PORT="$(prompt_value XRAY_LOOPBACK_PORT "$XRAY_LOOPBACK_PORT")"
+  MTPROTO_BACKEND_PORT="$(prompt_value MTPROTO_BACKEND_PORT "$MTPROTO_BACKEND_PORT")"
+  WEB_TLS_PORT="$(prompt_value WEB_TLS_PORT "$WEB_TLS_PORT")"
+  WEB_HTTP_PORT="$(prompt_value WEB_HTTP_PORT "$WEB_HTTP_PORT")"
+  SELFSTEAL_PORT="$(prompt_value SELFSTEAL_PORT "$SELFSTEAL_PORT")"
+  ;;
+ *)
+  die "Invalid selection. Choose 1, 2 or 0."
+  ;;
+esac
+
+for key in PUBLIC_HTTP_PORT PUBLIC_HTTPS_PORT XRAY_LOOPBACK_PORT MTPROTO_BACKEND_PORT WEB_TLS_PORT WEB_HTTP_PORT SELFSTEAL_PORT; do
+ validate_tcp_port "$key" "${!key}"
+done
+[[ "$PUBLIC_HTTP_PORT" != "$PUBLIC_HTTPS_PORT" ]] || die "Public HTTP and HTTPS ports must be different."
+
+info "Selected target port layout:"
+for key in PUBLIC_HTTP_PORT PUBLIC_HTTPS_PORT XRAY_LOOPBACK_PORT MTPROTO_BACKEND_PORT WEB_TLS_PORT WEB_HTTP_PORT SELFSTEAL_PORT; do
+ info "  $key=${!key}"
+done
+
+# Check whether the requested public binds are available. Existing HAProxy binds
+# are expected when the selected value matches the discovered active value.
+READY=1
+for key in PUBLIC_HTTP_PORT PUBLIC_HTTPS_PORT; do
+ current="${DISCOVERED[$key]}"
+ target="${!key}"
+ if [[ "$target" != "$current" ]] && ss -H -lnt "( sport = :$target )" 2>/dev/null | grep -q .; then
+  warn "$key target port $target is occupied; the plan will remain pending."
+  READY=0
+ fi
+done
+
+check_backend_listener "Xray" "$XRAY_LOOPBACK_HOST" "$XRAY_LOOPBACK_PORT" || READY=0
+check_backend_listener "MTProto" "$MTPROTO_BACKEND_HOST" "$MTPROTO_BACKEND_PORT" || READY=0
+check_backend_listener "WEB TLS" "$WEB_TLS_HOST" "$WEB_TLS_PORT" || READY=0
+check_backend_listener "WEB HTTP" "$WEB_HTTP_HOST" "$WEB_HTTP_PORT" || READY=0
+
+if (( READY == 0 )); then
+ save_port_plan
+ warn "Services are not ready for the selected ports. The active HAProxy config was NOT changed and was NOT reloaded."
+ warn "Configure the backend services, then rerun: sudo ./install.sh --run --stage haproxy"
+ exit 0
+fi
+
 tmp="$(mktemp "${config}.server-deployment.XXXXXX")"
 cleanup(){ rm -f -- "$tmp" "${new_file:-}" "${restore_file:-}"; }
 trap cleanup EXIT
 
-python3 - "$config" "$tmp" "$domains" "$WEB_DOMAIN" "$XRAY_LOOPBACK_HOST" "$XRAY_LOOPBACK_PORT" <<'PY'
-import re
-import sys
-from pathlib import Path
-
-source, target, raw_domains, web_domain, xray_host, xray_port = sys.argv[1:]
-domains = [item for item in re.split(r"[\s,]+", raw_domains.strip()) if item]
-if not domains:
-    raise SystemExit("ERROR: REMNAWAVE_SNI_DOMAINS is empty")
-domain_re = re.compile(r"^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$")
-seen = set()
-for domain in domains:
-    if not domain_re.fullmatch(domain):
-        raise SystemExit(f"ERROR: invalid Remnawave SNI domain: {domain}")
-    key = domain.lower()
-    if key in seen:
-        raise SystemExit(f"ERROR: duplicate Remnawave SNI domain: {domain}")
-    seen.add(key)
-if web_domain.lower() in seen:
-    raise SystemExit("ERROR: WEB_DOMAIN must not also appear in REMNAWAVE_SNI_DOMAINS")
-if not re.fullmatch(r"[A-Za-z0-9_.:-]+", xray_host) or any(c.isspace() for c in xray_host):
-    raise SystemExit("ERROR: invalid XRAY_LOOPBACK_HOST")
-if not xray_port.isdigit() or not (1 <= int(xray_port) <= 65535):
-    raise SystemExit("ERROR: invalid XRAY_LOOPBACK_PORT")
-
-path = Path(source)
-with open(path, "r", newline="") as handle:
-    text = handle.read()
-lines = text.splitlines(keepends=True)
-header_re = re.compile(r"^(?:global|defaults|frontend\s+\S+|backend\s+\S+|listen\s+\S+)\s*(?:#.*)?$")
-headers = [i for i, line in enumerate(lines) if header_re.match(line.rstrip("\r\n"))]
-
-def section(name, kind):
-    matches = [i for i in headers if lines[i].strip() == f"{kind} {name}"]
-    if len(matches) != 1:
-        raise SystemExit(f"ERROR: expected exactly one {kind} {name}, found {len(matches)}")
-    start = matches[0]
-    end = next((i for i in headers if i > start), len(lines))
-    return start, end
-
-start, end = section("mtproxyl_public", "frontend")
-block = lines[start:end]
-acl_matches = [i for i, line in enumerate(block) if re.match(r"^\s*acl\s+remnawave_sni\b", line)]
-route_matches = [i for i, line in enumerate(block) if re.match(r"^\s*use_backend\s+remnawave_xray\s+if\s+remnawave_sni\b", line)]
-web_matches = [i for i, line in enumerate(block) if "use_backend mtproxyl_web_tls" in line and "req.ssl_sni" in line and web_domain.lower() in line.lower()]
-default_matches = [i for i, line in enumerate(block) if re.match(r"^\s*default_backend\s+mtproxyl_mtproto\b", line)]
-if len(acl_matches) > 1 or len(route_matches) > 1:
-    raise SystemExit("ERROR: duplicate Remnawave ACL or route in frontend mtproxyl_public")
-if len(web_matches) != 1:
-    raise SystemExit("ERROR: expected exactly one WEB SNI route matching WEB_DOMAIN in frontend mtproxyl_public")
-if len(default_matches) != 1:
-    raise SystemExit("ERROR: expected exactly one MTProto default_backend in frontend mtproxyl_public")
-
-indent = "    "
-if acl_matches:
-    idx = acl_matches[0]
-    indent = re.match(r"^\s*", block[idx]).group(0)
-    line_ending = "\r\n" if block[idx].endswith("\r\n") else "\n"
-    block[idx] = f"{indent}acl remnawave_sni req.ssl_sni -i {' '.join(domains)}{line_ending}"
-else:
-    insert_at = route_matches[0] if route_matches else default_matches[0]
-    block.insert(insert_at, f"{indent}acl remnawave_sni req.ssl_sni -i {' '.join(domains)}\n")
-    # The insertion shifts the route/default positions; locate again.
-    route_matches = [i for i, line in enumerate(block) if re.match(r"^\s*use_backend\s+remnawave_xray\s+if\s+remnawave_sni\b", line)]
-if not route_matches:
-    acl_idx = next(i for i, line in enumerate(block) if re.match(r"^\s*acl\s+remnawave_sni\b", line))
-    block.insert(acl_idx + 1, f"{indent}use_backend remnawave_xray if remnawave_sni\n")
-
-lines[start:end] = block
-# Recompute section positions after the frontend edit.
-headers = [i for i, line in enumerate(lines) if header_re.match(line.rstrip("\r\n"))]
-bstart, bend = section("remnawave_xray", "backend")
-server_matches = []
-for i in range(bstart + 1, bend):
-    match = re.match(r"^(\s*server\s+remnawave\s+)(\S+)(.*)$", lines[i].rstrip("\r\n"))
-    if match:
-        server_matches.append((i, match))
-if len(server_matches) != 1:
-    raise SystemExit(f"ERROR: expected exactly one 'server remnawave' in backend remnawave_xray, found {len(server_matches)}")
-i, match = server_matches[0]
-newline = "\r\n" if lines[i].endswith("\r\n") else ("\n" if lines[i].endswith("\n") else "")
-lines[i] = f"{match.group(1)}{xray_host}:{xray_port}{match.group(3)}{newline}"
-
-with open(target, "w", newline="") as handle:
-    handle.write("".join(lines))
-PY
+python3 "$SD_ROOT/lib/haproxy_config.py" "$config" "$tmp" \
+ --domains "$REMNAWAVE_SNI_DOMAINS" --web-domain "$WEB_DOMAIN" \
+ --http-port "$PUBLIC_HTTP_PORT" --https-port "$PUBLIC_HTTPS_PORT" \
+ --xray-host "$XRAY_LOOPBACK_HOST" --xray-port "$XRAY_LOOPBACK_PORT" \
+ --mtproto-host "$MTPROTO_BACKEND_HOST" --mtproto-port "$MTPROTO_BACKEND_PORT" \
+ --web-tls-host "$WEB_TLS_HOST" --web-tls-port "$WEB_TLS_PORT" \
+ --web-http-host "$WEB_HTTP_HOST" --web-http-port "$WEB_HTTP_PORT" \
+ --selfsteal-port "$SELFSTEAL_PORT" || die "Could not prepare HAProxy config candidate."
 
 "$binary" -c -q -f "$tmp" || die "HAProxy rejected the proposed config; active config was not changed."
 info "HAProxy candidate passed syntax validation."
-info "Remnawave SNI domains: $domains"
-info "Xray backend: $XRAY_LOOPBACK_HOST:$XRAY_LOOPBACK_PORT"
 
 if cmp -s "$tmp" "$config"; then
+ rm -f -- "$SD_PORT_PLAN_FILE"
  info "HAProxy config is already synchronized; no change or reload needed."
  exit 0
 fi
 
-if [[ "$SD_MODE" != run || "$SD_DRY_RUN" == 1 ]]; then
- info "Check-only: proposed MTProxyL config changes validated; active file was not changed."
- exit 0
-fi
-
-confirm "Update only the Remnawave ACL/backend in $config and reload $service?" || {
+confirm_tty "Apply the selected port layout and Remnawave SNI routing to $config, then reload $service?" || {
  info "HAProxy integration cancelled; active config was not changed."
  exit 0
 }
@@ -156,6 +188,7 @@ chown --reference="$config" "$new_file"
 mv -f -- "$new_file" "$config"
 
 if systemctl reload "$service" && systemctl is-active --quiet "$service"; then
+ rm -f -- "$SD_PORT_PLAN_FILE"
  info "HAProxy config updated and $service reloaded successfully."
  info "Backup: $backup"
  exit 0
