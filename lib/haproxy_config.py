@@ -63,11 +63,11 @@ def replace_server(lines: list[str], section, name: str, server_name: str, host:
 
 def validate(args):
     ports = [args.http_port, args.https_port, args.xray_port, args.mtproto_port,
-             args.web_tls_port, args.web_http_port, args.selfsteal_port]
+             args.web_tls_port, args.web_http_port, args.static_port, args.selfsteal_port]
     for port in ports:
         if not port.isdigit() or not 1 <= int(port) <= 65535:
             raise ValueError(f"invalid TCP port: {port}")
-    for host in [args.xray_host, args.mtproto_host, args.web_tls_host, args.web_http_host]:
+    for host in [args.xray_host, args.mtproto_host, args.web_tls_host, args.web_http_host, args.static_host]:
         if not host or any(c.isspace() for c in host) or not re.fullmatch(r"[A-Za-z0-9_.:\[\]-]+", host):
             raise ValueError(f"invalid backend host: {host}")
 
@@ -124,6 +124,8 @@ def patch(args):
     replace_server(lines, section, "mtproxyl_mtproto", "mtproto", args.mtproto_host, args.mtproto_port)
     replace_server(lines, section, "mtproxyl_web_tls", "web_tls", args.web_tls_host, args.web_tls_port)
     replace_server(lines, section, "mtproxyl_web", "web", args.web_http_host, args.web_http_port)
+    replace_server(lines, section, "mtproxyl_site", "site", args.static_host, args.static_port)
+    replace_server(lines, section, "mtproxyl_static", "static", args.static_host, args.static_port)
 
     Path(args.target).write_text("".join(lines))
 
@@ -134,9 +136,9 @@ def main():
     parser.add_argument("target")
     parser.add_argument("--domains", required=True)
     parser.add_argument("--web-domain", required=True)
-    for key in ("http-port", "https-port", "xray-port", "mtproto-port", "web-tls-port", "web-http-port", "selfsteal-port"):
+    for key in ("http-port", "https-port", "xray-port", "mtproto-port", "web-tls-port", "web-http-port", "static-port", "selfsteal-port"):
         parser.add_argument(f"--{key}", required=True)
-    for key in ("xray-host", "mtproto-host", "web-tls-host", "web-http-host"):
+    for key in ("xray-host", "mtproto-host", "web-tls-host", "web-http-host", "static-host"):
         parser.add_argument(f"--{key}", required=True)
     args = parser.parse_args()
     try:
