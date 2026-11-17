@@ -13,7 +13,11 @@ fi
 
 printf 'Target Xray inbound: %s:%s\n' "$XRAY_LOOPBACK_HOST" "$XRAY_LOOPBACK_PORT"
 printf 'Expected fallback socket: %s\n' "$NGINX_SOCKET"
-[[ -S "$NGINX_SOCKET" ]] && info "Fallback socket exists" || warn "Fallback socket not found; eGamesAPI may not be installed yet."
+if [[ -S "$NGINX_SOCKET" ]]; then
+ info "Fallback socket exists"
+else
+ warn "Fallback socket not found; eGamesAPI may not be installed yet."
+fi
 cat <<'EOF'
 No Remnawave profile was changed.
 Automatic mutation remains disabled until the installed panel's OpenAPI schema,
