@@ -41,20 +41,20 @@ have ss || die "ss (iproute2) is required for listener discovery."
 declare -A DISCOVERED=()
 while IFS='=' read -r key value; do
  case "$key" in
-  PUBLIC_HTTP_PORT|PUBLIC_HTTPS_PORT|XRAY_LOOPBACK_HOST|XRAY_LOOPBACK_PORT|MTPROTO_BACKEND_HOST|MTPROTO_BACKEND_PORT|WEB_TLS_HOST|WEB_TLS_PORT|WEB_HTTP_HOST|WEB_HTTP_PORT|SELFSTEAL_PORT)
+  PUBLIC_HTTP_PORT|PUBLIC_HTTPS_PORT|XRAY_LOOPBACK_HOST|XRAY_LOOPBACK_PORT|MTPROTO_BACKEND_HOST|MTPROTO_BACKEND_PORT|WEB_TLS_HOST|WEB_TLS_PORT|WEB_HTTP_HOST|WEB_HTTP_PORT|STATIC_BACKEND_HOST|STATIC_BACKEND_PORT|SELFSTEAL_PORT)
    DISCOVERED["$key"]="$value"
    ;;
   *) die "Unexpected value returned by HAProxy discovery: $key";;
  esac
 done < <(discover_haproxy_ports "$config")
 
-for key in PUBLIC_HTTP_PORT PUBLIC_HTTPS_PORT XRAY_LOOPBACK_HOST XRAY_LOOPBACK_PORT MTPROTO_BACKEND_HOST MTPROTO_BACKEND_PORT WEB_TLS_HOST WEB_TLS_PORT WEB_HTTP_HOST WEB_HTTP_PORT SELFSTEAL_PORT; do
+for key in PUBLIC_HTTP_PORT PUBLIC_HTTPS_PORT XRAY_LOOPBACK_HOST XRAY_LOOPBACK_PORT MTPROTO_BACKEND_HOST MTPROTO_BACKEND_PORT WEB_TLS_HOST WEB_TLS_PORT WEB_HTTP_HOST WEB_HTTP_PORT STATIC_BACKEND_HOST STATIC_BACKEND_PORT SELFSTEAL_PORT; do
  [[ -n "${DISCOVERED[$key]:-}" ]] || die "Discovery did not return $key."
 done
 
 if [[ "$SD_MODE" == check || "$SD_DRY_RUN" == 1 ]]; then
  info "Discovered HAProxy port layout:"
- for key in PUBLIC_HTTP_PORT PUBLIC_HTTPS_PORT XRAY_LOOPBACK_PORT MTPROTO_BACKEND_PORT WEB_TLS_PORT WEB_HTTP_PORT SELFSTEAL_PORT; do
+ for key in PUBLIC_HTTP_PORT PUBLIC_HTTPS_PORT XRAY_LOOPBACK_PORT MTPROTO_BACKEND_PORT WEB_TLS_PORT WEB_HTTP_PORT STATIC_BACKEND_PORT SELFSTEAL_PORT; do
   info "  $key=${DISCOVERED[$key]}"
  done
  info "Check-only mode: no port plan or active config was changed."
@@ -110,6 +110,7 @@ case "$choice" in
   MTPROTO_BACKEND_PORT="$(prompt_value MTPROTO_BACKEND_PORT "$MTPROTO_BACKEND_PORT")"
   WEB_TLS_PORT="$(prompt_value WEB_TLS_PORT "$WEB_TLS_PORT")"
   WEB_HTTP_PORT="$(prompt_value WEB_HTTP_PORT "$WEB_HTTP_PORT")"
+  STATIC_BACKEND_PORT="$(prompt_value STATIC_BACKEND_PORT "$STATIC_BACKEND_PORT")"
   SELFSTEAL_PORT="$(prompt_value SELFSTEAL_PORT "$SELFSTEAL_PORT")"
   ;;
  *)
@@ -117,7 +118,7 @@ case "$choice" in
   ;;
 esac
 
-for key in PUBLIC_HTTP_PORT PUBLIC_HTTPS_PORT XRAY_LOOPBACK_PORT MTPROTO_BACKEND_PORT WEB_TLS_PORT WEB_HTTP_PORT SELFSTEAL_PORT; do
+for key in PUBLIC_HTTP_PORT PUBLIC_HTTPS_PORT XRAY_LOOPBACK_PORT MTPROTO_BACKEND_PORT WEB_TLS_PORT WEB_HTTP_PORT STATIC_BACKEND_PORT SELFSTEAL_PORT; do
  validate_tcp_port "$key" "${!key}"
 done
 [[ "$PUBLIC_HTTP_PORT" != "$PUBLIC_HTTPS_PORT" ]] || die "Public HTTP and HTTPS ports must be different."
@@ -147,6 +148,7 @@ done
 check_backend_listener "Xray" "$XRAY_LOOPBACK_HOST" "$XRAY_LOOPBACK_PORT" "${XRAY_LISTENER_PROCESS_HINT:-rw-core}" || READY=0
 check_backend_listener "MTProto" "$MTPROTO_BACKEND_HOST" "$MTPROTO_BACKEND_PORT" "${MTPROTO_LISTENER_PROCESS_HINT:-edgeguardd}" || READY=0
 check_backend_listener "WEB HTTP" "$WEB_HTTP_HOST" "$WEB_HTTP_PORT" "${WEB_HTTP_LISTENER_PROCESS_HINT:-edgeguardd}" || READY=0
+check_backend_listener "MTProxyL static" "$STATIC_BACKEND_HOST" "$STATIC_BACKEND_PORT" "${STATIC_LISTENER_PROCESS_HINT:-mtproxyl-static}" || READY=0
 
 if (( READY == 0 )); then
  save_port_plan
@@ -166,6 +168,7 @@ python3 "$SD_ROOT/lib/haproxy_config.py" "$config" "$tmp" \
  --mtproto-host "$MTPROTO_BACKEND_HOST" --mtproto-port "$MTPROTO_BACKEND_PORT" \
  --web-tls-host "$WEB_TLS_HOST" --web-tls-port "$WEB_TLS_PORT" \
  --web-http-host "$WEB_HTTP_HOST" --web-http-port "$WEB_HTTP_PORT" \
+ --static-host "$STATIC_BACKEND_HOST" --static-port "$STATIC_BACKEND_PORT" \
  --selfsteal-port "$SELFSTEAL_PORT" || die "Could not prepare HAProxy config candidate."
 
 "$binary" -c -q -f "$tmp" || die "HAProxy rejected the proposed config; active config was not changed."
