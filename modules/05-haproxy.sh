@@ -85,6 +85,10 @@ confirm_tty() {
  read -r -p "$1 [y/N] " answer </dev/tty
  [[ "$answer" =~ ^[Yy]$ ]]
 }
+haproxy_bind_ready() {
+ local port="$1"
+ ss -H -lntp "( sport = :$port )" 2>/dev/null | grep -Eq 'users:\\(\\("haproxy",'
+}
 
 # A pending plan is loaded only as the starting point for manual editing.
 HAS_PENDING=0
@@ -224,7 +228,8 @@ install -m "$(stat -c '%a' "$config")" "$tmp" "$new_file"
 chown --reference="$config" "$new_file"
 mv -f -- "$new_file" "$config"
 
-if systemctl reload "$service" && systemctl is-active --quiet "$service"; then
+if systemctl reload "$service" && systemctl is-active --quiet "$service" &&
+   haproxy_bind_ready "$WEB_TLS_PORT" && haproxy_bind_ready "$SELFSTEAL_PORT"; then
  rm -f -- "$SD_PORT_PLAN_FILE"
  info "HAProxy config updated and $service reloaded successfully."
  info "Backup: $backup"
