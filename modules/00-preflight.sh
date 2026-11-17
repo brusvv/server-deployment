@@ -3,6 +3,7 @@ set -Eeuo pipefail
 source "$SD_ROOT/lib/common.sh"
 source "$SD_ROOT/lib/config.sh"
 [[ -r /etc/os-release ]] || die "Cannot identify OS"
+# shellcheck disable=SC1091
 . /etc/os-release
 [[ "${ID:-}" == debian || "${ID:-}" == ubuntu ]] || die "Supported OS: Debian/Ubuntu; found ${ID:-unknown}"
 require_domains
