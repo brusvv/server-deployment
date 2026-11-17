@@ -105,8 +105,7 @@ case "$choice" in
   if (( HAS_PENDING == 0 )); then
    for key in "${!DISCOVERED[@]}"; do printf -v "$key" '%s' "${DISCOVERED[$key]}"; done
   fi
-  PUBLIC_HTTP_PORT="$(prompt_value PUBLIC_HTTP_PORT "$PUBLIC_HTTP_PORT")"
-  PUBLIC_HTTPS_PORT="$(prompt_value PUBLIC_HTTPS_PORT "$PUBLIC_HTTPS_PORT")"
+  # Public binds stay as discovered: changing them may break ACME and external routing.
   XRAY_LOOPBACK_PORT="$(prompt_value XRAY_LOOPBACK_PORT "$XRAY_LOOPBACK_PORT")"
   MTPROTO_BACKEND_PORT="$(prompt_value MTPROTO_BACKEND_PORT "$MTPROTO_BACKEND_PORT")"
   WEB_TLS_PORT="$(prompt_value WEB_TLS_PORT "$WEB_TLS_PORT")"
@@ -128,10 +127,10 @@ for key in PUBLIC_HTTP_PORT PUBLIC_HTTPS_PORT XRAY_LOOPBACK_PORT MTPROTO_BACKEND
  info "  $key=${!key}"
 done
 
-# Check whether the requested public binds are available. Existing HAProxy binds
-# are expected when the selected value matches the discovered active value.
+# Public HTTP/HTTPS binds are intentionally retained from discovery. For
+# internal HAProxy-owned binds, a changed target must be free before reload.
 READY=1
-for key in PUBLIC_HTTP_PORT PUBLIC_HTTPS_PORT; do
+for key in WEB_TLS_PORT SELFSTEAL_PORT; do
  current="${DISCOVERED[$key]}"
  target="${!key}"
  if [[ "$target" != "$current" ]] && ss -H -lnt "( sport = :$target )" 2>/dev/null | grep -q .; then
@@ -142,7 +141,6 @@ done
 
 check_backend_listener "Xray" "$XRAY_LOOPBACK_HOST" "$XRAY_LOOPBACK_PORT" || READY=0
 check_backend_listener "MTProto" "$MTPROTO_BACKEND_HOST" "$MTPROTO_BACKEND_PORT" || READY=0
-check_backend_listener "WEB TLS" "$WEB_TLS_HOST" "$WEB_TLS_PORT" || READY=0
 check_backend_listener "WEB HTTP" "$WEB_HTTP_HOST" "$WEB_HTTP_PORT" || READY=0
 
 if (( READY == 0 )); then
