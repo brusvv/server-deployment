@@ -119,6 +119,7 @@ def patch(args):
     replace_bind(lines, section, "mtproxyl_http", args.http_port)
     replace_bind(lines, section, "mtproxyl_public", args.https_port)
     replace_bind(lines, section, "mtproxyl_selfmask", args.selfsteal_port)
+    replace_bind(lines, section, "mtproxyl_web", args.web_tls_port)
     replace_server(lines, section, "remnawave_xray", "remnawave", args.xray_host, args.xray_port)
     replace_server(lines, section, "mtproxyl_mtproto", "mtproto", args.mtproto_host, args.mtproto_port)
     replace_server(lines, section, "mtproxyl_web_tls", "web_tls", args.web_tls_host, args.web_tls_port)
