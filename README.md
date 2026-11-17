@@ -4,6 +4,35 @@ Safety-first deployment orchestrator for a single-server stack built around **eG
 
 > **Status: early development / integration scaffold.** The deployment orchestration and MTProxyL HAProxy integration are under active development. External installers and Remnawave Config Profile mutation remain explicit integration points until their exact upstream versions and API contracts are pinned and tested.
 
+## Feature branch: HTTP redirects and SelfSteal website
+
+This branch extends the MTProxyL-managed HAProxy integration with two **independent, opt-in settings**. The behavior below describes the intended scope of this branch; until the implementation and tests are merged, the existing behavior remains unchanged.
+
+### HTTP → HTTPS redirects
+
+- The default remains **Strict**, preserving the current HTTP frontend behavior.
+- During setup, the operator is asked whether to enable redirects.
+- If enabled, the operator selects the hostnames that should receive HTTP → HTTPS redirects; the script must not assume that every configured SNI hostname should be redirected.
+- ACME HTTP-01 challenge requests under `/.well-known/acme-challenge/` remain reachable and must not be redirected or rejected by the new rules.
+- Hostnames not selected for redirects retain the existing strict handling unless a separate explicit behavior is configured.
+
+### SelfSteal website
+
+Website content is configured independently from HTTP redirect behavior. The planned choices are:
+
+1. **Keep current website** — do not replace existing content.
+2. **Built-in website** — install the bundled Polish-language static HTML website.
+3. **Custom website directory** — use an operator-provided website directory.
+
+The existing REALITY → Nginx Unix-socket fallback path is to be preserved. Website files must be managed separately from generated HAProxy configuration, and upgrades must not silently overwrite an operator's custom or previously installed website.
+
+### Compatibility and safety
+
+- Both features are opt-in; declining either prompt leaves that part of the deployment unchanged.
+- Existing HAProxy SNI routing, backend discovery, public binds and ACME handling must remain intact.
+- Generated configuration is validated before activation; the active configuration is backed up before replacement.
+- The implementation must support non-interactive/check-only execution without unexpectedly prompting or changing the current defaults.
+
 ## Deployment order
 
 1. **Preflight** — verify OS, domains, privileges and ports.
