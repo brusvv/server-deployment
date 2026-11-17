@@ -51,7 +51,7 @@ Default mode is check-only. Execute one stage explicitly:
     sudo ./install.sh --check --stage haproxy
     sudo ./install.sh --run --stage haproxy
 
-The HAProxy stage only applies when the MTProxyL custom HAProxy config is already active and its service is running.
+The HAProxy stage only applies when the MTProxyL custom HAProxy config is already active and its service is running. In run mode it offers an interactive port setup: option 1 adopts the layout discovered from the active config; option 2 lets the operator enter target ports; option 0 exits without changes. If a selected backend is not listening yet, or a requested public bind is occupied, the stage saves a root-only pending plan under the configured state directory and does not touch or reload the active config. Configure the underlying service(s), then rerun the stage and choose option 2 to reuse/edit the pending values.
 
 ## Layout
 
@@ -82,7 +82,7 @@ The HAProxy stage only applies when the MTProxyL custom HAProxy config is alread
 
     Xray fallback -> eGamesAPI Nginx Unix socket
 
-The HAProxy stage is an adapter for the MTProxyL-managed configuration, not a standalone HAProxy installer. Set `REMNAWAVE_SNI_DOMAINS` in `config/domains.env` as a space-separated list (for example, `gateway.example.com sync.example.com storage.example.com`) and set `WEB_DOMAIN` separately. The stage requires MTProxyL to use `FRONT_SERVER='haproxy'` with `NGINX_CUSTOM_ENABLED='true'`. It verifies that the systemd unit references the configured active file, changes only the `remnawave_sni` ACL and the `server remnawave` endpoint in `backend remnawave_xray`, validates the candidate with the configured MTProxyL HAProxy binary, creates a timestamped backup and calls `systemctl reload`. It does not regenerate the MTProxyL config or modify other frontends/backends. If validation fails, the active file is left untouched; if reload fails, the previous file is restored.
+The HAProxy stage is an adapter for the MTProxyL-managed configuration, not a standalone HAProxy installer. Set `REMNAWAVE_SNI_DOMAINS` in `config/domains.env` as a space-separated list (for example, `gateway.example.com sync.example.com storage.example.com`) and set `WEB_DOMAIN` separately. The stage requires MTProxyL to use `FRONT_SERVER='haproxy'` with `NGINX_CUSTOM_ENABLED='true'`. Discovery reads the active HAProxy config as the source of truth for public binds and backend endpoints, then checks backend listener readiness. The recommended option preserves the discovered layout. Manual mode accepts target ports for public HTTP/HTTPS, Xray, MTProto, WEB TLS/HTTP and Selfmask. Hosts are retained from discovery. If a backend is not listening on the selected port yet, or a new public bind is occupied, the stage saves a root-only pending plan and makes no active-config change. The operator can configure the relevant services, rerun the Xray adapter stage to see the pending Xray target, then rerun HAProxy setup and choose manual mode to reuse/edit the saved plan. Once listeners are ready, the stage patches only the managed bind/server directives and Remnawave SNI ACL, validates the candidate with the configured MTProxyL HAProxy binary, creates a timestamped backup and reloads the service. If validation fails, the active file is left untouched; if reload fails, the previous file is restored.
 
 ## Safety
 
