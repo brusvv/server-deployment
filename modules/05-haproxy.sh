@@ -122,6 +122,11 @@ for key in PUBLIC_HTTP_PORT PUBLIC_HTTPS_PORT XRAY_LOOPBACK_PORT MTPROTO_BACKEND
 done
 [[ "$PUBLIC_HTTP_PORT" != "$PUBLIC_HTTPS_PORT" ]] || die "Public HTTP and HTTPS ports must be different."
 
+# Keep public entry points tied to the active configuration; manual mode only
+# changes internal service ports and HAProxy's local loopback binds.
+PUBLIC_HTTP_PORT="${DISCOVERED[PUBLIC_HTTP_PORT]}"
+PUBLIC_HTTPS_PORT="${DISCOVERED[PUBLIC_HTTPS_PORT]}"
+
 info "Selected target port layout:"
 for key in PUBLIC_HTTP_PORT PUBLIC_HTTPS_PORT XRAY_LOOPBACK_PORT MTPROTO_BACKEND_PORT WEB_TLS_PORT WEB_HTTP_PORT SELFSTEAL_PORT; do
  info "  $key=${!key}"
