@@ -144,7 +144,7 @@ try:
 except socket.gaierror:
     requested_set = {requested}
 requested_set.update({requested, requested.strip("[]")})
-wildcards = {"*", "0.0.0.0", "::"}
+requested_wildcard = requested in {"*", "0.0.0.0", "::"}
 for line in output.splitlines():
     fields = line.split()
     if len(fields) < 4:
@@ -158,7 +158,10 @@ for line in output.splitlines():
     process = re.search(r'users:\(\("([^"]+)"', line)
     if process_hint and (not process or process_hint not in process.group(1)):
         continue
-    if local_port == port and (local_host in wildcards or local_host in requested_set):
+    host_matches = local_host in requested_set
+    if requested_wildcard and local_host in {"*", "0.0.0.0", "::"}:
+        host_matches = True
+    if local_port == port and host_matches:
         raise SystemExit(0)
 raise SystemExit(1)
 PY
