@@ -7,4 +7,6 @@ else
  echo "ShellCheck not installed; running bash -n only"
 fi
 find . -type f -name '*.sh' -print0 | while IFS= read -r -d '' file; do bash -n "$file"; done
-echo "Static shell checks passed."
+python3 -m py_compile lib/haproxy_config.py
+bash tests/port-discovery.sh
+echo "Static shell and HAProxy port checks passed."
