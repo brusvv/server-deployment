@@ -129,6 +129,30 @@ for key in PUBLIC_HTTP_PORT PUBLIC_HTTPS_PORT XRAY_LOOPBACK_PORT MTPROTO_BACKEND
  validate_tcp_port "$key" "${!key}"
 done
 [[ "$PUBLIC_HTTP_PORT" != "$PUBLIC_HTTPS_PORT" ]] || die "Public HTTP and HTTPS ports must be different."
+[[ "$WEB_TLS_PORT" != "$SELFSTEAL_PORT" ]] || die "WEB TLS and Selfmask local bind ports must be different."
+for internal_port in "$WEB_TLS_PORT" "$SELFSTEAL_PORT"; do
+ [[ "$internal_port" != "$PUBLIC_HTTP_PORT" && "$internal_port" != "$PUBLIC_HTTPS_PORT" ]] ||
+  die "An internal HAProxy bind cannot reuse a public entry port ($internal_port)."
+done
+
+declare -A backend_endpoint_owner=()
+register_backend_endpoint() {
+ local label="$1" host="$2" port="$3" endpoint="${host}|${port}" previous="${backend_endpoint_owner[$endpoint]:-}"
+ if [[ -n "$previous" ]]; then
+  if [[ "$label" == "Static backend" && "$previous" == "Selfmask backend" ]] ||
+     [[ "$label" == "Selfmask backend" && "$previous" == "Static backend" ]]; then
+   return 0
+  fi
+  die "$label and $previous use the same backend endpoint $host:$port."
+ fi
+ backend_endpoint_owner["$endpoint"]="$label"
+}
+register_backend_endpoint "Xray" "$XRAY_LOOPBACK_HOST" "$XRAY_LOOPBACK_PORT"
+register_backend_endpoint "MTProto" "$MTPROTO_BACKEND_HOST" "$MTPROTO_BACKEND_PORT"
+register_backend_endpoint "WEB HTTP" "$WEB_HTTP_HOST" "$WEB_HTTP_PORT"
+register_backend_endpoint "WEB TLS" "$WEB_TLS_HOST" "$WEB_TLS_PORT"
+register_backend_endpoint "Selfmask backend" "$SELFSTEAL_BACKEND_HOST" "$SELFSTEAL_BACKEND_PORT"
+register_backend_endpoint "Static backend" "$STATIC_BACKEND_HOST" "$STATIC_BACKEND_PORT"
 
 info "Selected target port layout:"
 for key in PUBLIC_HTTP_PORT PUBLIC_HTTPS_PORT XRAY_LOOPBACK_PORT MTPROTO_BACKEND_PORT WEB_TLS_PORT WEB_HTTP_PORT SELFSTEAL_BACKEND_PORT STATIC_BACKEND_PORT SELFSTEAL_PORT; do
