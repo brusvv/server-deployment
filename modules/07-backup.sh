@@ -12,7 +12,7 @@ case "$action" in
   stamp="$(date -u +%Y%m%dT%H%M%SZ)"
   archive="$BACKUP_DIR/server-deployment-$stamp.tar.gz"
   paths=()
-  for path in "$REMNAWAVE_DIR" "$MTProxyL_DIR" "$HAPROXY_CONFIG" "$SD_ROOT/config"; do [[ -e "$path" ]] && paths+=("$path"); done
+  for path in "$REMNAWAVE_DIR" "${MTProxyL_DIR:-/opt/mtproxyl}" "$HAPROXY_CONFIG" "$SD_ROOT/config"; do [[ -e "$path" ]] && paths+=("$path"); done
   (("${#paths[@]}")) || die "No configured paths exist to back up"
   tar --numeric-owner -czf "$archive" "${paths[@]}"
   chmod 0600 "$archive"
