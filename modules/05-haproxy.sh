@@ -13,7 +13,7 @@ domains="$REMNAWAVE_SNI_DOMAINS"
 
 # This stage intentionally patches the active MTProxyL custom config.
 # It never renders or replaces the complete HAProxy configuration.
-if [[ ! -s "$config" || ! -x "$binary" || ! -f "$settings" ]]; then
+if [[ ! -f "$config" || -L "$config" || ! -s "$config" || ! -x "$binary" || ! -f "$settings" ]]; then
  if [[ "$SD_MODE" == check || "$SD_DRY_RUN" == 1 ]]; then
   warn "MTProxyL active HAProxy config, binary or settings not found; integration check skipped."
   exit 0
@@ -26,8 +26,11 @@ grep -Eq "^[[:space:]]*FRONT_SERVER=['\"]haproxy['\"]" "$settings" ||
 grep -Eq "^[[:space:]]*NGINX_CUSTOM_ENABLED=['\"]true['\"]" "$settings" ||
  die "MTProxyL custom config mode is not enabled; refusing to modify a non-active config."
 
-systemctl cat "$service" 2>/dev/null | grep -Fq -- "$config" ||
+unit_definition="$(systemctl cat "$service" 2>/dev/null)" || die "Cannot read systemd unit $service."
+grep -Fq -- "$config" <<< "$unit_definition" ||
  die "Systemd unit $service does not reference $config; refusing to reload a different config."
+grep -Fq -- "$binary" <<< "$unit_definition" ||
+ die "Systemd unit $service does not use $binary; configure HAPROXY_BIN to match the active service."
 systemctl is-active --quiet "$service" ||
  { [[ "$SD_MODE" == check || "$SD_DRY_RUN" == 1 ]] && warn "$service is not active; reload will require an active service." || die "$service is not active."; }
 
