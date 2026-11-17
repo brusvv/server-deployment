@@ -25,6 +25,18 @@ At the time of this check, the script declares `SCRIPT_VERSION="3.8.4"`, while t
 
 ## Quick start
 
+Remote bootstrap (clones the repository to `/opt/server-deployment` and starts the local installer):
+
+    bash <(curl -fsSL https://raw.githubusercontent.com/brusvv/server-deployment/main/install.sh) --check
+
+For an explicit execution run, pass `--run` (the default is check-only):
+
+    sudo bash <(curl -fsSL https://raw.githubusercontent.com/brusvv/server-deployment/main/install.sh) --run
+
+You can override the clone location with `SD_INSTALL_DIR=/path/to/server-deployment`.
+
+For a manual checkout:
+
     git clone https://github.com/brusvv/server-deployment.git
     cd server-deployment
     cp config/domains.env.example config/domains.env
