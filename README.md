@@ -23,6 +23,7 @@ Safety-first deployment orchestrator for a single-server stack built around **eG
     cd server-deployment
     cp config/domains.env.example config/domains.env
     nano config/domains.env
+    chmod +x install.sh modules/*.sh checks/*.sh tests/*.sh
     sudo ./install.sh --check
 
 Default mode is check-only. Execute one stage explicitly:
