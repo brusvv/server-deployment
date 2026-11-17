@@ -148,7 +148,7 @@ done
 check_backend_listener "Xray" "$XRAY_LOOPBACK_HOST" "$XRAY_LOOPBACK_PORT" "${XRAY_LISTENER_PROCESS_HINT:-rw-core}" || READY=0
 check_backend_listener "MTProto" "$MTPROTO_BACKEND_HOST" "$MTPROTO_BACKEND_PORT" "${MTPROTO_LISTENER_PROCESS_HINT:-edgeguardd}" || READY=0
 check_backend_listener "WEB HTTP" "$WEB_HTTP_HOST" "$WEB_HTTP_PORT" "${WEB_HTTP_LISTENER_PROCESS_HINT:-edgeguardd}" || READY=0
-check_backend_listener "MTProxyL static" "$STATIC_BACKEND_HOST" "$STATIC_BACKEND_PORT" "${STATIC_LISTENER_PROCESS_HINT:-mtproxyl-static}" || READY=0
+check_backend_listener "MTProxyL static" "$STATIC_BACKEND_HOST" "$STATIC_BACKEND_PORT" "${STATIC_LISTENER_PROCESS_HINT:-}" || READY=0
 
 if (( READY == 0 )); then
  save_port_plan
