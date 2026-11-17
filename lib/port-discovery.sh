@@ -118,10 +118,37 @@ load_port_plan() {
 check_backend_listener() {
   local label="$1" host="$2" port="$3"
   validate_tcp_port "$label" "$port"
-  if ss -H -lnt "( sport = :$port )" 2>/dev/null | grep -q .; then
+  local listeners
+  listeners="$(ss -H -lnt "( sport = :$port )" 2>/dev/null || true)"
+  if python3 - "$host" "$port" "$listeners" <<'PY'
+import socket
+import sys
+
+requested, port, output = sys.argv[1:]
+try:
+    requested_set = {item[4][0] for item in socket.getaddrinfo(requested, None, type=socket.SOCK_STREAM)}
+except socket.gaierror:
+    requested_set = {requested}
+requested_set.update({requested, requested.strip("[]")})
+wildcards = {"*", "0.0.0.0", "::"}
+for line in output.splitlines():
+    fields = line.split()
+    if len(fields) < 4:
+        continue
+    local = fields[3]
+    try:
+        local_host, local_port = local.rsplit(":", 1)
+    except ValueError:
+        continue
+    local_host = local_host.strip("[]")
+    if local_port == port and (local_host in wildcards or local_host in requested_set):
+        raise SystemExit(0)
+raise SystemExit(1)
+PY
+  then
     info "$label listener detected on $host:$port"
     return 0
   fi
-  warn "$label is not listening on $host:$port yet; plan remains pending."
+  warn "$label is not listening on the requested endpoint $host:$port yet; plan remains pending."
   return 1
 }
