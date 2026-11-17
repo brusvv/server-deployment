@@ -127,12 +127,14 @@ check_backend_listener() {
   local label="$1" host="$2" port="$3"
   validate_tcp_port "$label" "$port"
   local listeners
-  listeners="$(ss -H -lnt "( sport = :$port )" 2>/dev/null || true)"
-  if python3 - "$host" "$port" "$listeners" <<'PY'
+  local process_hint="${4:-}"
+  listeners="$(ss -H -lntp "( sport = :$port )" 2>/dev/null || true)"
+  if python3 - "$host" "$port" "$process_hint" "$listeners" <<'PY'
+import re
 import socket
 import sys
 
-requested, port, output = sys.argv[1:]
+requested, port, process_hint, output = sys.argv[1:]
 try:
     requested_set = {item[4][0] for item in socket.getaddrinfo(requested, None, type=socket.SOCK_STREAM)}
 except socket.gaierror:
@@ -149,6 +151,9 @@ for line in output.splitlines():
     except ValueError:
         continue
     local_host = local_host.strip("[]")
+    process = re.search(r'users:\\(\\("([^"]+)"', line)
+    if process_hint and (not process or process_hint not in process.group(1)):
+        continue
     if local_port == port and (local_host in wildcards or local_host in requested_set):
         raise SystemExit(0)
 raise SystemExit(1)
