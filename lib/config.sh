@@ -7,10 +7,12 @@ load_config(){
   # shellcheck disable=SC1090
   source "$file"
  done
+ # Backward compatibility for existing domains.env files.
+ if [[ -z "${REMNAWAVE_SNI_DOMAINS:-}" ]]; then
+  REMNAWAVE_SNI_DOMAINS="${PANEL_DOMAIN:-} ${SUBSCRIPTION_DOMAIN:-} ${SELFSTEAL_DOMAIN:-} ${REMNAWAVE_EXTRA_DOMAINS:-}"
+ fi
 }
 require_domains(){
- : "${PANEL_DOMAIN:?Set PANEL_DOMAIN in config/domains.env}"
- : "${SUBSCRIPTION_DOMAIN:?Set SUBSCRIPTION_DOMAIN in config/domains.env}"
- : "${SELFSTEAL_DOMAIN:?Set SELFSTEAL_DOMAIN in config/domains.env}"
+ [[ -n "${REMNAWAVE_SNI_DOMAINS//[[:space:]]/}" ]] || die "Set REMNAWAVE_SNI_DOMAINS in config/domains.env"
  : "${WEB_DOMAIN:?Set WEB_DOMAIN in config/domains.env}"
 }
