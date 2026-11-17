@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 source "$SD_ROOT/lib/common.sh"
 source "$SD_ROOT/lib/config.sh"
+load_config
 source "$SD_ROOT/lib/port-discovery.sh"
 require_root
 require_domains
