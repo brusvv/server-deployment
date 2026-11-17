@@ -9,6 +9,10 @@ Safety-first deployment orchestrator for a single-server stack built around **eG
 1. **Preflight** — verify OS, domains, privileges and ports.
 2. **System** — install base packages and create state directories.
 3. **eGamesAPI + Remnawave** — use the official eGamesAPI installer; it installs/configures Remnawave as part of its flow. Do not install a second Remnawave stack.
+
+Official upstream launch command (tracks the `main` branch, so review upstream changes before production use):
+
+    bash <(curl -Ls https://raw.githubusercontent.com/eGamesAPI/remnawave-reverse-proxy/refs/heads/main/install_remnawave.sh)
 4. **Network adapter** — prepare and verify the intended Xray inbound change to 127.0.0.1:1443 and preserve the eGamesAPI Nginx Unix-socket fallback. API mutation is disabled until a tested API contract is available.
 5. **MTProxyL** — install the selected, reviewed MTProxyL version and configure internal listeners.
 6. **HAProxy** — render and validate a starter config; merge/apply only after review.
