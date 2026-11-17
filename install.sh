@@ -1,6 +1,36 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+# Bootstrap mode: supports both a local checkout and:
+#   bash <(curl -fsSL https://raw.githubusercontent.com/brusvv/server-deployment/main/install.sh)
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" 2>/dev/null && pwd -P)"
+REPO_URL="${SD_REPO_URL:-https://github.com/brusvv/server-deployment.git}"
+INSTALL_DIR="${SD_INSTALL_DIR:-/opt/server-deployment}"
+
+if [[ ! -f "$SCRIPT_DIR/lib/common.sh" ]]; then
+  command -v git >/dev/null 2>&1 || {
+    echo "ERROR: git is required for remote bootstrap." >&2
+    exit 1
+  }
+
+  if [[ -e "$INSTALL_DIR" ]]; then
+    if [[ -f "$INSTALL_DIR/lib/common.sh" && -d "$INSTALL_DIR/.git" ]]; then
+      echo "Using existing checkout: $INSTALL_DIR"
+    else
+      echo "ERROR: $INSTALL_DIR exists but is not a server-deployment checkout." >&2
+      echo "Set SD_INSTALL_DIR to another path or move the existing directory." >&2
+      exit 1
+    fi
+  else
+    mkdir -p "$(dirname -- "$INSTALL_DIR")"
+    echo "Cloning server-deployment into $INSTALL_DIR ..."
+    git clone --depth 1 --branch main "$REPO_URL" "$INSTALL_DIR"
+  fi
+
+  exec bash "$INSTALL_DIR/install.sh" "$@"
+fi
+
+ROOT_DIR="$SCRIPT_DIR"
 export SD_ROOT="$ROOT_DIR"
 source "$SD_ROOT/lib/common.sh"
 source "$SD_ROOT/lib/config.sh"
