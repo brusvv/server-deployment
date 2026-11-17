@@ -52,6 +52,21 @@ At the time of this check, the script declares `SCRIPT_VERSION="3.8.4"`, while t
 
 **Why this order?** eGamesAPI is first because its installation flow includes Remnawave and expects public HTTPS ports to be available. After installation, Xray can be moved to loopback port 1443. MTProxyL/HAProxy can then own public 80/443.
 
+## Installing this feature branch
+
+To install this branch rather than `main`:
+
+    git clone --depth 1 --branch feature/http-redirect-selfsteal-website https://github.com/brusvv/server-deployment.git /opt/server-deployment
+    cd /opt/server-deployment
+    cp config/domains.env.example config/domains.env
+    nano config/domains.env
+    bash install.sh --check
+
+If `config/domains.env` already exists from a previous installation, preserve it
+when replacing the checkout and do not overwrite it with the example file. Set
+real hostnames you control before running preflight; the example domains are
+placeholders and will fail validation.
+
 ## Quick start
 
 Remote bootstrap (clones the repository to `/opt/server-deployment` and starts the local installer):
