@@ -9,15 +9,17 @@ Safety-first deployment orchestrator for a single-server stack built around **eG
 1. **Preflight** — verify OS, domains, privileges and ports.
 2. **System** — install base packages and create state directories.
 3. **eGamesAPI + Remnawave** — use the official eGamesAPI installer; it installs/configures Remnawave as part of its flow. Do not install a second Remnawave stack.
-
-Official upstream launch command (tracks the `main` branch, so review upstream changes before production use):
-
-    bash <(curl -Ls https://raw.githubusercontent.com/eGamesAPI/remnawave-reverse-proxy/refs/heads/main/install_remnawave.sh)
 4. **Network adapter** — prepare and verify the intended Xray inbound change to 127.0.0.1:1443 and preserve the eGamesAPI Nginx Unix-socket fallback. API mutation is disabled until a tested API contract is available.
 5. **MTProxyL** — install the selected, reviewed MTProxyL version and configure internal listeners.
 6. **HAProxy** — render and validate a starter config; merge/apply only after review.
 7. **Validation** — check DNS, ports and services.
 8. **Backup** — create/list/restore project-managed backups.
+
+Official eGamesAPI upstream launch command (tracks `main`, not a pinned release; review changes before production use):
+
+    bash <(curl -Ls https://raw.githubusercontent.com/eGamesAPI/remnawave-reverse-proxy/refs/heads/main/install_remnawave.sh)
+
+At the time of this check, the script declares `SCRIPT_VERSION="3.8.4"`, while the latest published GitHub release is `v3.8.0`. The branch script is therefore newer than the latest formal release tag; do not treat those version labels as equivalent.
 
 **Why this order?** eGamesAPI is first because its installation flow includes Remnawave and expects public HTTPS ports to be available. After installation, Xray can be moved to loopback port 1443. MTProxyL/HAProxy can then own public 80/443.
 
