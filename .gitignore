@@ -1,0 +1,7 @@
+config/domains.env
+config/secrets.env
+.env
+*.log
+*.tar.gz
+*.bak
+*.before-server-deployment.*
