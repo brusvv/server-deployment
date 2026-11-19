@@ -5,3 +5,7 @@ config/secrets.env
 *.tar.gz
 *.bak
 *.before-server-deployment.*
+
+# Python compile/test artifacts
+__pycache__/
+*.py[cod]
