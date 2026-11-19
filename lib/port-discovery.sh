@@ -45,7 +45,7 @@ def endpoint(raw, context):
 
 def server(kind, section, server_name):
     rows = one_section(kind, section)
-    found = [raw for _, raw in rows if re.match(rf"^\\s*server\\s+{re.escape(server_name)}\\s+", raw)]
+    found = [raw for _, raw in rows if re.match(rf"^\s*server\s+{re.escape(server_name)}\s+", raw)]
     if len(found) != 1:
         raise SystemExit(f"discovery error: expected one server {server_name} in {kind} {section}, found {len(found)}")
     return endpoint(found[0], f"{kind} {section}/{server_name}")
@@ -59,7 +59,7 @@ def server_any(kind, names, server_name):
             f"discovery error: expected exactly one of {kind} {', '.join(names)}, found {len(matches)}"
         )
     rows = matches[0]
-    found = [raw for _, raw in rows if re.match(rf"^\\s*server\\s+{re.escape(server_name)}\\s+", raw)]
+    found = [raw for _, raw in rows if re.match(rf"^\s*server\s+{re.escape(server_name)}\s+", raw)]
     if len(found) != 1:
         raise SystemExit(f"discovery error: expected one server {server_name} in {kind} WEB backend, found {len(found)}")
     return endpoint(found[0], f"{kind} WEB/{server_name}")
