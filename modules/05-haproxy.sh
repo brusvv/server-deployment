@@ -11,6 +11,10 @@ config="${HAPROXY_CONFIG:?HAPROXY_CONFIG is not set}"
 binary="${HAPROXY_BIN:-haproxy}"
 service="${HAPROXY_SERVICE:?HAPROXY_SERVICE is not set}"
 settings="${MTPROXYL_SETTINGS:-$MTProxyL_DIR/settings.conf}"
+HTTP_REDIRECT_DOMAINS="${HTTP_REDIRECT_DOMAINS:-}"
+ACME_WEBROOT_HOST="${ACME_WEBROOT_HOST:-127.0.0.1}"
+ACME_WEBROOT_PORT="${ACME_WEBROOT_PORT:-18080}"
+XRAY_LISTENER_REQUIRED="${XRAY_LISTENER_REQUIRED:-0}"
 
 # This stage intentionally patches the active MTProxyL custom config.
 # It never renders or replaces the complete HAProxy configuration.
@@ -46,7 +50,7 @@ have ss || die "ss (iproute2) is required for listener discovery."
 declare -A DISCOVERED=()
 while IFS='=' read -r key value; do
  case "$key" in
-  PUBLIC_HTTP_PORT|PUBLIC_HTTPS_PORT|XRAY_BACKEND_PRESENT|XRAY_LOOPBACK_HOST|XRAY_LOOPBACK_PORT|MTPROTO_BACKEND_HOST|MTPROTO_BACKEND_PORT|WEB_TLS_HOST|WEB_TLS_PORT|WEB_HTTP_HOST|WEB_HTTP_PORT|SELFSTEAL_BACKEND_HOST|SELFSTEAL_BACKEND_PORT|STATIC_BACKEND_HOST|STATIC_BACKEND_PORT|SELFSTEAL_PORT)
+  PUBLIC_HTTP_PORT|PUBLIC_HTTPS_PORT|XRAY_BACKEND_PRESENT|XRAY_LOOPBACK_HOST|XRAY_LOOPBACK_PORT|MTPROTO_BACKEND_HOST|MTPROTO_BACKEND_PORT|WEB_TLS_HOST|WEB_TLS_PORT|WEB_HTTP_HOST|WEB_HTTP_PORT|SELFSTEAL_BACKEND_HOST|SELFSTEAL_BACKEND_PORT|STATIC_BACKEND_HOST|STATIC_BACKEND_PORT|SELFSTEAL_PORT|ACME_BACKEND_PRESENT|ACME_WEBROOT_HOST|ACME_WEBROOT_PORT)
    DISCOVERED["$key"]="$value"
    ;;
   *) die "Unexpected value returned by HAProxy discovery: $key";;
@@ -54,7 +58,7 @@ while IFS='=' read -r key value; do
 done < <(discover_haproxy_ports "$config")
 XRAY_BACKEND_PRESENT="${DISCOVERED[XRAY_BACKEND_PRESENT]}"
 
-for key in PUBLIC_HTTP_PORT PUBLIC_HTTPS_PORT XRAY_BACKEND_PRESENT XRAY_LOOPBACK_HOST XRAY_LOOPBACK_PORT MTPROTO_BACKEND_HOST MTPROTO_BACKEND_PORT WEB_TLS_HOST WEB_TLS_PORT WEB_HTTP_HOST WEB_HTTP_PORT SELFSTEAL_BACKEND_HOST SELFSTEAL_BACKEND_PORT STATIC_BACKEND_HOST STATIC_BACKEND_PORT SELFSTEAL_PORT; do
+for key in PUBLIC_HTTP_PORT PUBLIC_HTTPS_PORT XRAY_BACKEND_PRESENT XRAY_LOOPBACK_HOST XRAY_LOOPBACK_PORT MTPROTO_BACKEND_HOST MTPROTO_BACKEND_PORT WEB_TLS_HOST WEB_TLS_PORT WEB_HTTP_HOST WEB_HTTP_PORT SELFSTEAL_BACKEND_HOST SELFSTEAL_BACKEND_PORT STATIC_BACKEND_HOST STATIC_BACKEND_PORT SELFSTEAL_PORT ACME_BACKEND_PRESENT ACME_WEBROOT_HOST ACME_WEBROOT_PORT; do
  [[ -n "${DISCOVERED[$key]:-}" ]] || die "Discovery did not return $key."
 done
 
@@ -65,6 +69,12 @@ if [[ "$SD_MODE" == check || "$SD_DRY_RUN" == 1 ]]; then
  done
  if [[ "${DISCOVERED[XRAY_BACKEND_PRESENT]}" == false ]]; then
   warn "Remnawave backend is absent; using configured initial target ${DISCOVERED[XRAY_LOOPBACK_HOST]}:${DISCOVERED[XRAY_LOOPBACK_PORT]}."
+ fi
+ if [[ -n "${HTTP_REDIRECT_DOMAINS//[[:space:]]/}" ]]; then
+  info "HTTP redirects enabled for: $HTTP_REDIRECT_DOMAINS"
+  info "ACME webroot target: ${DISCOVERED[ACME_WEBROOT_HOST]}:${DISCOVERED[ACME_WEBROOT_PORT]}"
+ else
+  info "HTTP redirects remain disabled (HTTP_REDIRECT_DOMAINS is empty)."
  fi
  info "Check-only mode: no port plan or active config was changed."
  exit 0
@@ -141,6 +151,9 @@ PUBLIC_HTTPS_PORT="${DISCOVERED[PUBLIC_HTTPS_PORT]}"
 for key in PUBLIC_HTTP_PORT PUBLIC_HTTPS_PORT XRAY_LOOPBACK_PORT MTPROTO_BACKEND_PORT WEB_TLS_PORT WEB_HTTP_PORT SELFSTEAL_BACKEND_PORT STATIC_BACKEND_PORT SELFSTEAL_PORT; do
  validate_tcp_port "$key" "${!key}"
 done
+if [[ -n "${HTTP_REDIRECT_DOMAINS//[[:space:]]/}" ]]; then
+ validate_tcp_port ACME_WEBROOT_PORT "$ACME_WEBROOT_PORT"
+fi
 [[ "$PUBLIC_HTTP_PORT" != "$PUBLIC_HTTPS_PORT" ]] || die "Public HTTP and HTTPS ports must be different."
 [[ "$WEB_TLS_PORT" != "$SELFSTEAL_PORT" ]] || die "WEB TLS and Selfmask local bind ports must be different."
 for internal_port in "$WEB_TLS_PORT" "$SELFSTEAL_PORT"; do
@@ -168,6 +181,9 @@ register_backend_endpoint "WEB HTTP" "${DISCOVERED[WEB_HTTP_HOST]}" "$WEB_HTTP_P
 register_backend_endpoint "WEB TLS" "${DISCOVERED[WEB_TLS_HOST]}" "$WEB_TLS_PORT"
 register_backend_endpoint "Selfmask backend" "${DISCOVERED[SELFSTEAL_BACKEND_HOST]}" "$SELFSTEAL_BACKEND_PORT"
 register_backend_endpoint "Static backend" "${DISCOVERED[STATIC_BACKEND_HOST]}" "$STATIC_BACKEND_PORT"
+if [[ -n "${HTTP_REDIRECT_DOMAINS//[[:space:]]/}" ]]; then
+ register_backend_endpoint "ACME webroot" "${DISCOVERED[ACME_WEBROOT_HOST]}" "${DISCOVERED[ACME_WEBROOT_PORT]}"
+fi
 
 info "Selected target port layout:"
 for key in PUBLIC_HTTP_PORT PUBLIC_HTTPS_PORT XRAY_LOOPBACK_PORT MTPROTO_BACKEND_PORT WEB_TLS_PORT WEB_HTTP_PORT SELFSTEAL_BACKEND_PORT STATIC_BACKEND_PORT SELFSTEAL_PORT; do
@@ -187,7 +203,11 @@ for key in WEB_TLS_PORT SELFSTEAL_PORT; do
 done
 
 if [[ "${XRAY_BACKEND_PRESENT}" == true ]]; then
- check_backend_listener "Xray" "$XRAY_LOOPBACK_HOST" "$XRAY_LOOPBACK_PORT" "${XRAY_LISTENER_PROCESS_HINT:-rw-core}" || READY=0
+ if [[ "$XRAY_LISTENER_REQUIRED" == 1 ]]; then
+  check_backend_listener "Xray" "$XRAY_LOOPBACK_HOST" "$XRAY_LOOPBACK_PORT" "${XRAY_LISTENER_PROCESS_HINT:-rw-core}" || READY=0
+ else
+  warn "Xray listener validation is deferred (XRAY_LISTENER_REQUIRED=0); expected target is $XRAY_LOOPBACK_HOST:$XRAY_LOOPBACK_PORT."
+ fi
 else
  warn "Remnawave Xray backend is not present yet; the configured target $XRAY_LOOPBACK_HOST:$XRAY_LOOPBACK_PORT will be added and listener validation deferred until Remnawave installation."
 fi
@@ -195,6 +215,9 @@ check_backend_listener "MTProto" "$MTPROTO_BACKEND_HOST" "$MTPROTO_BACKEND_PORT"
 check_backend_listener "WEB HTTP" "$WEB_HTTP_HOST" "$WEB_HTTP_PORT" "${WEB_HTTP_LISTENER_PROCESS_HINT:-edgeguardd}" || READY=0
 check_backend_listener "MTProxyL Selfmask backend" "$SELFSTEAL_BACKEND_HOST" "$SELFSTEAL_BACKEND_PORT" "${SELFSTEAL_BACKEND_PROCESS_HINT:-${STATIC_LISTENER_PROCESS_HINT:-}}" || READY=0
 check_backend_listener "MTProxyL static backend" "$STATIC_BACKEND_HOST" "$STATIC_BACKEND_PORT" "${STATIC_LISTENER_PROCESS_HINT:-}" || READY=0
+if [[ -n "${HTTP_REDIRECT_DOMAINS//[[:space:]]/}" ]]; then
+ check_backend_listener "ACME webroot" "${DISCOVERED[ACME_WEBROOT_HOST]}" "${DISCOVERED[ACME_WEBROOT_PORT]}" "${ACME_LISTENER_PROCESS_HINT:-}" || READY=0
+fi
 
 if (( READY == 0 )); then
  save_port_plan
@@ -210,6 +233,8 @@ trap cleanup EXIT
 
 python3 "$SD_ROOT/lib/haproxy_config.py" "$config" "$tmp" \
  --domains "$REMNAWAVE_SNI_DOMAINS" --web-domain "$WEB_DOMAIN" \
+ --redirect-domains "$HTTP_REDIRECT_DOMAINS" \
+ --acme-host "${DISCOVERED[ACME_WEBROOT_HOST]}" --acme-port "${DISCOVERED[ACME_WEBROOT_PORT]}" \
  --http-port "$PUBLIC_HTTP_PORT" --https-port "$PUBLIC_HTTPS_PORT" \
  --xray-host "$XRAY_LOOPBACK_HOST" --xray-port "$XRAY_LOOPBACK_PORT" \
  --mtproto-host "$MTPROTO_BACKEND_HOST" --mtproto-port "$MTPROTO_BACKEND_PORT" \
