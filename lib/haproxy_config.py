@@ -25,6 +25,15 @@ def parse_sections(lines: list[str]):
     return section
 
 
+def newline_for(lines: list[str]) -> str:
+    for line in lines:
+        if line.endswith("\r\n"):
+            return "\r\n"
+        if line.endswith("\n"):
+            return "\n"
+    return "\n"
+
+
 def replace_bind(lines: list[str], section, name: str, port: str):
     start, end = section("frontend", name)
     found = []
@@ -61,15 +70,135 @@ def replace_server(lines: list[str], section, name: str, server_name: str, host:
     lines[i] = f"{match.group(1)}{formatted_host}:{port}{match.group(4)}{newline}"
 
 
+def parse_domain_list(raw: str, label: str, allow_empty: bool = False) -> list[str]:
+    domains = [item for item in re.split(r"[\s,]+", raw.strip()) if item]
+    domain_re = re.compile(r"^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$")
+    seen = set()
+    for domain in domains:
+        if not domain_re.fullmatch(domain):
+            raise ValueError(f"invalid {label} domain: {domain}")
+        if domain.lower() in seen:
+            raise ValueError(f"duplicate {label} domain: {domain}")
+        seen.add(domain.lower())
+    if not domains and not allow_empty:
+        raise ValueError(f"{label} domain list must not be empty")
+    return domains
+
+
 def validate(args):
-    ports = [args.http_port, args.https_port, args.xray_port, args.mtproto_port,
-             args.web_tls_port, args.web_http_port, args.static_port, args.selfsteal_backend_port, args.selfsteal_port]
+    ports = [
+        args.http_port, args.https_port, args.xray_port, args.mtproto_port,
+        args.web_tls_port, args.web_http_port, args.static_port,
+        args.selfsteal_backend_port, args.selfsteal_port, args.acme_port,
+    ]
     for port in ports:
         if not port.isdigit() or not 1 <= int(port) <= 65535:
             raise ValueError(f"invalid TCP port: {port}")
-    for host in [args.xray_host, args.mtproto_host, args.web_tls_host, args.web_http_host, args.static_host, args.selfsteal_backend_host]:
+    for host in [
+        args.xray_host, args.mtproto_host, args.web_tls_host, args.web_http_host,
+        args.static_host, args.selfsteal_backend_host, args.acme_host,
+    ]:
         if not host or any(c.isspace() for c in host) or not re.fullmatch(r"[A-Za-z0-9_.:\[\]-]+", host):
             raise ValueError(f"invalid backend host: {host}")
+
+
+def rename_web_backend(lines: list[str]) -> str:
+    """Avoid a frontend/backend name collision in HAProxy 3.3+."""
+    section = parse_sections(lines)
+    old_headers = [
+        i for i, line in enumerate(lines)
+        if line.strip() == "backend mtproxyl_web"
+    ]
+    new_headers = [
+        i for i, line in enumerate(lines)
+        if line.strip() == "backend mtproxyl_web_backend"
+    ]
+    if len(old_headers) > 1 or len(new_headers) > 1 or (old_headers and new_headers):
+        raise ValueError("expected one legacy or renamed MTProxyL WEB backend, not both")
+
+    start, end = section("frontend", "mtproxyl_web")
+    block = lines[start:end]
+    old_refs = [i for i, line in enumerate(block) if re.match(r"^\s*default_backend\s+mtproxyl_web\s*$", line)]
+    new_refs = [i for i, line in enumerate(block) if re.match(r"^\s*default_backend\s+mtproxyl_web_backend\s*$", line)]
+    if len(old_refs) + len(new_refs) != 1:
+        raise ValueError("expected exactly one WEB frontend default_backend reference")
+
+    if old_headers:
+        index = old_headers[0]
+        newline = "\r\n" if lines[index].endswith("\r\n") else "\n"
+        lines[index] = f"backend mtproxyl_web_backend{newline}"
+    elif not new_headers:
+        raise ValueError("MTProxyL WEB backend was not found")
+
+    if old_refs:
+        index = start + old_refs[0]
+        newline = "\r\n" if lines[index].endswith("\r\n") else "\n"
+        lines[index] = f"    default_backend mtproxyl_web_backend{newline}"
+    return "mtproxyl_web_backend"
+
+
+def patch_http_frontend(lines: list[str], redirect_domains: list[str], acme_host: str, acme_port: str):
+    """Opt-in same-host HTTPS redirects while keeping HTTP-01 reachable."""
+    if not redirect_domains:
+        return
+
+    section = parse_sections(lines)
+    start, end = section("frontend", "mtproxyl_http")
+    block = lines[start:end]
+    defaults = [i for i, line in enumerate(block) if re.match(r"^\s*default_backend\s+\S+", line)]
+    if len(defaults) != 1:
+        raise ValueError("expected exactly one default_backend in frontend mtproxyl_http")
+
+    kept = []
+    for line in block:
+        stripped = line.strip()
+        if re.match(r"^acl\s+acme\b", stripped):
+            continue
+        if re.match(r"^acl\s+sd_http_redirect_hosts\b", stripped):
+            continue
+        if re.match(r"^http-request\s+deny\s+deny_status\s+404\s+unless\s+sd_http_redirect_hosts\b", stripped):
+            continue
+        if re.match(r"^http-request\s+redirect\s+scheme\s+https\s+code\s+301\s+if\s+sd_http_redirect_hosts\s+!acme$", stripped):
+            continue
+        if re.match(r"^use_backend\s+mtproxyl_acme\s+if\s+acme$", stripped):
+            continue
+        # Replace the legacy single-host redirect and strict non-ACME reject
+        # previously used by this project's first manual integration.
+        if re.match(r"^http-request\s+redirect\b.*\s+if\s+!acme\b", stripped):
+            continue
+        if re.match(r"^http-request\s+reject\s+if\s+!acme$", stripped):
+            continue
+        kept.append(line)
+
+    default_index = next(i for i, line in enumerate(kept) if re.match(r"^\s*default_backend\s+\S+", line))
+    nl = newline_for(block)
+    rules = [
+        f"    acl acme path_beg /.well-known/acme-challenge/{nl}",
+        f"    acl sd_http_redirect_hosts hdr(host),field(1,:) -i {' '.join(redirect_domains)}{nl}",
+        f"    http-request deny deny_status 404 unless sd_http_redirect_hosts{nl}",
+        f"    http-request redirect scheme https code 301 if sd_http_redirect_hosts !acme{nl}",
+        f"    use_backend mtproxyl_acme if acme{nl}",
+    ]
+    block = kept[:default_index] + rules + kept[default_index:]
+    lines[start:end] = block
+
+
+def ensure_acme_backend(lines: list[str], host: str, port: str):
+    headers = [i for i, line in enumerate(lines) if line.strip() == "backend mtproxyl_acme"]
+    if len(headers) > 1:
+        raise ValueError("duplicate backend mtproxyl_acme")
+    section = parse_sections(lines)
+    if headers:
+        replace_server(lines, section, "mtproxyl_acme", "acme", host, port)
+    else:
+        if lines and not lines[-1].endswith(("\n", "\r")):
+            lines[-1] += "\n"
+        nl = newline_for(lines)
+        lines.extend([
+            nl,
+            f"backend mtproxyl_acme{nl}",
+            f"    server acme {host}:{port}{nl}",
+        ])
 
 
 def patch(args):
@@ -78,20 +207,13 @@ def patch(args):
     with path.open("r", newline="") as handle:
         text = handle.read()
     lines = text.splitlines(keepends=True)
-    section = parse_sections(lines)
 
-    domains = [item for item in re.split(r"[\s,]+", args.domains.strip()) if item]
-    domain_re = re.compile(r"^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$")
-    seen = set()
-    for domain in domains:
-        if not domain_re.fullmatch(domain):
-            raise ValueError(f"invalid Remnawave SNI domain: {domain}")
-        if domain.lower() in seen:
-            raise ValueError(f"duplicate Remnawave SNI domain: {domain}")
-        seen.add(domain.lower())
-    if args.web_domain.lower() in seen:
+    domains = parse_domain_list(args.domains, "Remnawave SNI")
+    redirect_domains = parse_domain_list(args.redirect_domains, "HTTP redirect", allow_empty=True)
+    if args.web_domain.lower() in {domain.lower() for domain in domains}:
         raise ValueError("WEB_DOMAIN must not also appear in REMNAWAVE_SNI_DOMAINS")
 
+    section = parse_sections(lines)
     start, end = section("frontend", "mtproxyl_public")
     block = lines[start:end]
     acl = [i for i, line in enumerate(block) if re.match(r"^\s*acl\s+remnawave_sni\b", line)]
@@ -133,9 +255,16 @@ def patch(args):
         ])
     replace_server(lines, section, "mtproxyl_mtproto", "mtproto", args.mtproto_host, args.mtproto_port)
     replace_server(lines, section, "mtproxyl_web_tls", "web_tls", args.web_tls_host, args.web_tls_port)
-    replace_server(lines, section, "mtproxyl_web", "web", args.web_http_host, args.web_http_port)
     replace_server(lines, section, "mtproxyl_site", "site", args.selfsteal_backend_host, args.selfsteal_backend_port)
     replace_server(lines, section, "mtproxyl_static", "static", args.static_host, args.static_port)
+
+    web_backend_name = rename_web_backend(lines)
+    section = parse_sections(lines)
+    replace_server(lines, section, web_backend_name, "web", args.web_http_host, args.web_http_port)
+
+    patch_http_frontend(lines, redirect_domains, args.acme_host, args.acme_port)
+    if redirect_domains:
+        ensure_acme_backend(lines, args.acme_host, args.acme_port)
 
     Path(args.target).write_text("".join(lines))
 
@@ -146,6 +275,9 @@ def main():
     parser.add_argument("target")
     parser.add_argument("--domains", required=True)
     parser.add_argument("--web-domain", required=True)
+    parser.add_argument("--redirect-domains", default="")
+    parser.add_argument("--acme-host", default="127.0.0.1")
+    parser.add_argument("--acme-port", default="18080")
     for key in ("http-port", "https-port", "xray-port", "mtproto-port", "web-tls-port", "web-http-port", "static-port", "selfsteal-backend-port", "selfsteal-port"):
         parser.add_argument(f"--{key}", required=True)
     for key in ("xray-host", "mtproto-host", "web-tls-host", "web-http-host", "static-host", "selfsteal-backend-host"):
