@@ -10,11 +10,19 @@ This branch extends the MTProxyL-managed HAProxy integration with two **independ
 
 ### HTTP → HTTPS redirects
 
-- The default remains **Strict**, preserving the current HTTP frontend behavior.
-- During setup, the operator is asked whether to enable redirects.
-- If enabled, the operator selects the hostnames that should receive HTTP → HTTPS redirects; the script must not assume that every configured SNI hostname should be redirected.
-- ACME HTTP-01 challenge requests under `/.well-known/acme-challenge/` remain reachable and must not be redirected or rejected by the new rules.
-- Hostnames not selected for redirects retain the existing strict handling unless a separate explicit behavior is configured.
+- The default remains **Strict**. Leave `HTTP_REDIRECT_DOMAINS` empty to preserve the current HTTP frontend behavior.
+- To opt in, set `HTTP_REDIRECT_DOMAINS` in `config/domains.env` to a space-separated allowlist of hostnames that should receive HTTP → HTTPS redirects. The list is explicit; the script does not assume that every configured SNI hostname should be redirected.
+- Listed hosts receive a same-host `301` redirect to HTTPS. Unknown Host values receive `404`.
+- ACME HTTP-01 requests under `/.well-known/acme-challenge/` bypass the redirect and are routed to the dedicated ACME webroot backend.
+- The ACME backend defaults to `127.0.0.1:18080` (`ACME_WEBROOT_HOST` / `ACME_WEBROOT_PORT`). The service must be listening before redirects are enabled; the HAProxy stage checks it before applying the config.
+- Example loopback-only webroot container:
+
+      install -d -m 0755 /var/www/acme/.well-known/acme-challenge
+      docker run -d --name acme-webroot --restart unless-stopped \
+        -p 127.0.0.1:18080:80 \
+        -v /var/www/acme:/usr/share/nginx/html:ro nginx:alpine
+
+- Certbot can use `--webroot -w /var/www/acme`. Existing certificates and renewal configs are not rewritten by the HAProxy stage.
 
 ### SelfSteal website
 
@@ -28,8 +36,11 @@ The existing REALITY → Nginx Unix-socket fallback path is to be preserved. Web
 
 ### Compatibility and safety
 
-- Both features are opt-in; declining either prompt leaves that part of the deployment unchanged.
+- HTTP redirects are opt-in through `HTTP_REDIRECT_DOMAINS`; an empty value preserves the strict behavior.
 - Existing HAProxy SNI routing, backend discovery, public binds and ACME handling must remain intact.
+- The MTProxyL WEB backend is normalized to `mtproxyl_web_backend` to avoid a frontend/backend name collision on newer HAProxy releases.
+- The ACME webroot backend is discovered from the active config when present; otherwise the configured loopback endpoint is used.
+- Xray listener validation is deferred by default until Remnawave Node is installed. Set `XRAY_LISTENER_REQUIRED=1` when the listener must be present before applying HAProxy changes.
 - Generated configuration is validated before activation; the active configuration is backed up before replacement.
 - The implementation must support non-interactive/check-only execution without unexpectedly prompting or changing the current defaults.
 
@@ -116,17 +127,31 @@ The HAProxy stage only applies when the MTProxyL custom HAProxy config is alread
 
 ## Network model
 
-    Internet :80/:443
+    Internet :80
            |
            v
-    HAProxy (public entry point after migration)
+    HAProxy HTTP frontend
+           |-- ACME path (when redirects are enabled) -> 127.0.0.1:18080
+           |-- listed Host values                     -> same-host HTTPS 301
+           `-- unknown Host values                    -> HTTP 404
+
+    Internet :443
+           |
+           v
+    HAProxy TCP/SNI frontend
            |-- WEB SNI        -> MTProxyL WEB TLS backend
            |-- Remnawave SNI  -> 127.0.0.1:1443 (Xray)
            `-- default        -> MTProxyL MTProto backend
 
     Xray fallback -> eGamesAPI Nginx Unix socket
 
-The HAProxy stage is an adapter for the MTProxyL-managed configuration, not a standalone HAProxy installer. Set `REMNAWAVE_SNI_DOMAINS` in `config/domains.env` as a space-separated list (for example, `gateway.example.com sync.example.com storage.example.com`) and set `WEB_DOMAIN` separately. The stage requires MTProxyL to use `FRONT_SERVER='haproxy'` with `NGINX_CUSTOM_ENABLED='true'`. Discovery reads the active HAProxy config as the source of truth for public binds and backend endpoints, then checks backend listener readiness. The recommended option preserves the discovered layout. Manual mode accepts target ports for Xray, MTProto, WEB TLS/HTTP, the Selfmask backend, the static backend and the Selfmask local bind. Public HTTP/HTTPS entry ports are always retained from discovery to avoid accidentally breaking ACME or external routing. Hosts are retained from discovery; the WEB TLS local bind and its upstream endpoint are updated together. Selfmask and static backend endpoints are discovered and configured independently. Backend readiness checks match the requested bind address and configurable process-name hints (`XRAY_LISTENER_PROCESS_HINT`, `MTPROTO_LISTENER_PROCESS_HINT`, `WEB_HTTP_LISTENER_PROCESS_HINT`, `SELFSTEAL_BACKEND_PROCESS_HINT` and `STATIC_LISTENER_PROCESS_HINT` in `config/services.env`), not merely any listener on the same numeric port. If a backend is not listening on the selected port yet, or a requested new local HAProxy bind is occupied, the stage saves a root-only pending plan and makes no active-config change. The operator can configure the relevant services, rerun the Xray adapter stage to see the pending Xray target, then rerun HAProxy setup and choose manual mode to reuse/edit the saved plan. Once listeners are ready, the stage patches only the managed bind/server directives and Remnawave SNI ACL, validates the candidate with the configured MTProxyL HAProxy binary, creates a timestamped backup and reloads the service. If validation fails, the active file is left untouched; if reload fails, the previous file is restored.
+The HAProxy stage is an adapter for the MTProxyL-managed configuration, not a standalone HAProxy installer. Set `REMNAWAVE_SNI_DOMAINS` in `config/domains.env` as a space-separated list and set `WEB_DOMAIN` separately. Set `HTTP_REDIRECT_DOMAINS` explicitly when same-host HTTP → HTTPS redirects are desired; leave it empty to keep the strict/default behavior. The stage requires MTProxyL to use `FRONT_SERVER='haproxy'` with `NGINX_CUSTOM_ENABLED='true'`.
+
+Discovery reads the active HAProxy config as the source of truth for public binds and backend endpoints. It recognizes both the legacy `mtproxyl_web` backend and the normalized `mtproxyl_web_backend`, plus the optional `mtproxyl_acme` backend. When redirects are enabled, the ACME webroot listener must be reachable at `ACME_WEBROOT_HOST:ACME_WEBROOT_PORT` (defaults to `127.0.0.1:18080`). The WEB TLS local bind and its upstream endpoint are updated together; Selfmask and static backend endpoints are discovered independently.
+
+The recommended option preserves the discovered port layout. Manual mode accepts target ports for Xray, MTProto, WEB TLS/HTTP, the Selfmask backend, the static backend and the Selfmask local bind. Public HTTP/HTTPS entry ports are always retained from discovery. Backend readiness checks match the requested bind address and configurable process-name hints (`XRAY_LISTENER_PROCESS_HINT`, `MTPROTO_LISTENER_PROCESS_HINT`, `WEB_HTTP_LISTENER_PROCESS_HINT`, `SELFSTEAL_BACKEND_PROCESS_HINT` and `STATIC_LISTENER_PROCESS_HINT` in `config/services.env`). Xray readiness is deferred by default until Node installation; set `XRAY_LISTENER_REQUIRED=1` to make it mandatory. If a required backend is not listening or a requested new local HAProxy bind is occupied, the stage saves a root-only pending plan and makes no active-config change.
+
+Once ready, the stage patches only the managed bind/server directives, Remnawave SNI ACL and the explicitly enabled HTTP/ACME rules, validates the candidate with the configured MTProxyL HAProxy binary, creates a timestamped backup and reloads the service. If validation fails, the active file is left untouched; if reload fails, the previous file is restored.
 
 ## Safety
 
