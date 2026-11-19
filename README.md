@@ -145,6 +145,10 @@ The HAProxy stage only applies when the MTProxyL custom HAProxy config is alread
 
     Xray fallback -> eGamesAPI Nginx Unix socket
 
+**Current scope:** every hostname listed in `REMNAWAVE_SNI_DOMAINS` is sent to the Xray backend. This adapter does not yet create separate HTTPS routes for Remnawave Panel or Subscription Page. Do not assign those hostnames to web applications until a separate reverse-proxy route is implemented and tested.
+
+The verified reference-server state, including listener ports, ACME validation, certificate state, resource limits and items still outstanding, is recorded in [docs/validated-server-baseline-2026-11-18.md](docs/validated-server-baseline-2026-11-18.md). The document contains no deployment-specific domain names, IPs or secrets.
+
 The HAProxy stage is an adapter for the MTProxyL-managed configuration, not a standalone HAProxy installer. Set `REMNAWAVE_SNI_DOMAINS` in `config/domains.env` as a space-separated list and set `WEB_DOMAIN` separately. Set `HTTP_REDIRECT_DOMAINS` explicitly when same-host HTTP → HTTPS redirects are desired; leave it empty to keep the strict/default behavior. The stage requires MTProxyL to use `FRONT_SERVER='haproxy'` with `NGINX_CUSTOM_ENABLED='true'`.
 
 Discovery reads the active HAProxy config as the source of truth for public binds and backend endpoints. It recognizes both the legacy `mtproxyl_web` backend and the normalized `mtproxyl_web_backend`, plus the optional `mtproxyl_acme` backend. When redirects are enabled, the ACME webroot listener must be reachable at `ACME_WEBROOT_HOST:ACME_WEBROOT_PORT` (defaults to `127.0.0.1:18080`). The WEB TLS local bind and its upstream endpoint are updated together; Selfmask and static backend endpoints are discovered independently.
