@@ -7,13 +7,14 @@ SD_PORT_PLAN_FILE="${SD_PORT_PLAN_FILE:-${STATE_DIR:-/var/lib/server-deployment}
 discover_haproxy_ports() {
   local config="$1"
   [[ -r "$config" ]] || die "Cannot read HAProxy config for discovery: $config"
-  python3 - "$config" "${XRAY_LOOPBACK_HOST:-127.0.0.1}" "${XRAY_LOOPBACK_PORT:-1443}" <<'PY'
+  python3 - "$config" "${XRAY_LOOPBACK_HOST:-127.0.0.1}" "${XRAY_LOOPBACK_PORT:-1443}" "${ACME_WEBROOT_HOST:-127.0.0.1}" "${ACME_WEBROOT_PORT:-18080}" <<'PY'
 import re
 import sys
 from pathlib import Path
 
 text = Path(sys.argv[1]).read_text()
 default_xray_host, default_xray_port = sys.argv[2], int(sys.argv[3])
+default_acme_host, default_acme_port = sys.argv[4], int(sys.argv[5])
 lines = text.splitlines()
 sections = {}
 current = None
@@ -44,10 +45,24 @@ def endpoint(raw, context):
 
 def server(kind, section, server_name):
     rows = one_section(kind, section)
-    found = [raw for _, raw in rows if re.match(rf"^\s*server\s+{re.escape(server_name)}\s+", raw)]
+    found = [raw for _, raw in rows if re.match(rf"^\\s*server\\s+{re.escape(server_name)}\\s+", raw)]
     if len(found) != 1:
         raise SystemExit(f"discovery error: expected one server {server_name} in {kind} {section}, found {len(found)}")
     return endpoint(found[0], f"{kind} {section}/{server_name}")
+
+
+def server_any(kind, names, server_name):
+    matches = [rows for (section_kind, section_name), rows in sections.items()
+               if section_kind == kind and section_name in names]
+    if len(matches) != 1:
+        raise SystemExit(
+            f"discovery error: expected exactly one of {kind} {', '.join(names)}, found {len(matches)}"
+        )
+    rows = matches[0]
+    found = [raw for _, raw in rows if re.match(rf"^\\s*server\\s+{re.escape(server_name)}\\s+", raw)]
+    if len(found) != 1:
+        raise SystemExit(f"discovery error: expected one server {server_name} in {kind} WEB backend, found {len(found)}")
+    return endpoint(found[0], f"{kind} WEB/{server_name}")
 
 def bind(section):
     rows = one_section("frontend", section)
@@ -77,6 +92,16 @@ if web_tls_bind_port != web_tls_endpoint[1]:
 selfsteal_backend_endpoint = server("backend", "mtproxyl_site", "site")
 static_backend_endpoint = server("backend", "mtproxyl_static", "static")
 
+acme_sections = [v for (k, n), v in sections.items() if k == "backend" and n == "mtproxyl_acme"]
+if len(acme_sections) > 1:
+    raise SystemExit("discovery error: expected at most one backend mtproxyl_acme")
+if acme_sections:
+    acme_endpoint = server("backend", "mtproxyl_acme", "acme")
+    acme_backend_present = "true"
+else:
+    acme_endpoint = (default_acme_host, default_acme_port)
+    acme_backend_present = "false"
+
 xray_sections = [v for (k, n), v in sections.items() if k == "backend" and n == "remnawave_xray"]
 if len(xray_sections) > 1:
     raise SystemExit("discovery error: expected at most one backend remnawave_xray")
@@ -94,10 +119,12 @@ values = {
     "XRAY_LOOPBACK": xray_endpoint,
     "MTPROTO_BACKEND": server("backend", "mtproxyl_mtproto", "mtproto"),
     "WEB_TLS": web_tls_endpoint,
-    "WEB_HTTP": server("backend", "mtproxyl_web", "web"),
+    "WEB_HTTP": server_any("backend", ("mtproxyl_web", "mtproxyl_web_backend"), "web"),
     "SELFSTEAL_BACKEND": selfsteal_backend_endpoint,
     "STATIC_BACKEND": static_backend_endpoint,
     "SELFSTEAL_PORT": bind("mtproxyl_selfmask"),
+    "ACME_BACKEND_PRESENT": acme_backend_present,
+    "ACME_WEBROOT": acme_endpoint,
 }
 for key, value in values.items():
     if isinstance(value, tuple):
