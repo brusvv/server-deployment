@@ -154,16 +154,18 @@ def patch_http_frontend(lines: list[str], redirect_domains: list[str], acme_host
         stripped = line.strip()
         if re.match(r"^acl\s+acme\b", stripped):
             continue
-        if re.match(r"^acl\s+sd_http_redirect_hosts\b", stripped):
+        # Remove rules emitted by this patcher and the equivalent known_http_host
+        # form that was applied manually during the server-side rollout.
+        if re.match(r"^acl\s+(?:sd_http_redirect_hosts|known_http_host)\b", stripped):
             continue
-        if re.match(r"^http-request\s+deny\s+deny_status\s+404\s+unless\s+sd_http_redirect_hosts\b", stripped):
+        if re.match(r"^http-request\s+deny\s+deny_status\s+404\s+unless\s+(?:sd_http_redirect_hosts|known_http_host)\b", stripped):
             continue
-        if re.match(r"^http-request\s+redirect\s+scheme\s+https\s+code\s+301\s+if\s+sd_http_redirect_hosts\s+!acme$", stripped):
+        if re.match(r"^http-request\s+redirect\s+scheme\s+https\s+code\s+301\s+if\s+(?:sd_http_redirect_hosts|known_http_host)\s+!acme$", stripped):
             continue
         if re.match(r"^use_backend\s+mtproxyl_acme\s+if\s+acme$", stripped):
             continue
         # Replace the legacy single-host redirect and strict non-ACME reject
-        # previously used by this project's first manual integration.
+        # previously used by MTProxyL and the first manual integration.
         if re.match(r"^http-request\s+redirect\b.*\s+if\s+!acme\b", stripped):
             continue
         if re.match(r"^http-request\s+reject\s+if\s+!acme$", stripped):
