@@ -5,13 +5,20 @@ export SD_ROOT="$ROOT"
 source "$ROOT/lib/common.sh"
 source "$ROOT/lib/port-discovery.sh"
 
-declare -A found=()
-while IFS='=' read -r key value; do found["$key"]="$value"; done < <(discover_haproxy_ports "$ROOT/tests/fixtures/haproxy.cfg")
-
 assert_eq() {
   local expected="$1" actual="$2" label="$3"
   [[ "$expected" == "$actual" ]] || { echo "FAIL: $label expected '$expected', got '$actual'" >&2; exit 1; }
 }
+
+tmp="$(mktemp)"
+tmp_no_xray="$(mktemp)"
+tmp_no_xray_patched="$(mktemp)"
+tmp_idempotent="$(mktemp)"
+trap 'rm -f "$tmp" "$tmp_no_xray" "$tmp_no_xray_patched" "$tmp_idempotent"' EXIT
+
+# Discover the original fixture before any Remnawave or ACME backend exists.
+declare -A found=()
+while IFS='=' read -r key value; do found["$key"]="$value"; done < <(discover_haproxy_ports "$ROOT/tests/fixtures/haproxy.cfg")
 assert_eq 80 "${found[PUBLIC_HTTP_PORT]}" "public HTTP"
 assert_eq 443 "${found[PUBLIC_HTTPS_PORT]}" "public HTTPS"
 assert_eq 127.0.0.1 "${found[XRAY_LOOPBACK_HOST]}" "Xray host"
@@ -26,11 +33,7 @@ assert_eq false "${found[ACME_BACKEND_PRESENT]}" "ACME backend absent flag"
 assert_eq 127.0.0.1 "${found[ACME_WEBROOT_HOST]}" "default ACME host"
 assert_eq 18080 "${found[ACME_WEBROOT_PORT]}" "default ACME port"
 
-tmp="$(mktemp)"
-trap 'rm -f "$tmp"' EXIT
-# shellcheck disable=SC2329 # Invoked by EXIT trap.
-cleanup(){ rm -f -- "$tmp"; }
-trap cleanup EXIT
+# Apply SNI integration, optional HTTP redirects, ACME webroot and backend rename.
 python3 "$ROOT/lib/haproxy_config.py" "$ROOT/tests/fixtures/haproxy.cfg" "$tmp" \
   --domains "gateway.example.com sync.example.com" --web-domain "cdn.example.com" \
   --redirect-domains "api.example.com cdn.example.com gateway.example.com sync.example.com" \
@@ -55,25 +58,38 @@ grep -Fq 'bind 127.0.0.1:9444' "$tmp"
 grep -Fq 'acl remnawave_sni req.ssl_sni -i gateway.example.com sync.example.com' "$tmp"
 grep -Fq 'acl acme path_beg /.well-known/acme-challenge/' "$tmp"
 grep -Fq 'acl sd_http_redirect_hosts hdr(host),field(1,:) -i api.example.com cdn.example.com gateway.example.com sync.example.com' "$tmp"
+grep -Fq 'http-request deny deny_status 404 unless sd_http_redirect_hosts' "$tmp"
 grep -Fq 'http-request redirect scheme https code 301 if sd_http_redirect_hosts !acme' "$tmp"
 grep -Fq 'use_backend mtproxyl_acme if acme' "$tmp"
 grep -Fq 'backend mtproxyl_acme' "$tmp"
 grep -Fq 'server acme 127.0.0.1:18080' "$tmp"
 grep -Fq 'default_backend mtproxyl_web_backend' "$tmp"
-grep -Eq '^backend mtproxyl_web_backend
+grep -Eq '^backend mtproxyl_web_backend$' "$tmp"
+if grep -Eq '^backend mtproxyl_web$' "$tmp"; then
+  echo "FAIL: legacy WEB backend name was not renamed" >&2
+  exit 1
+fi
+
+# Discovery must recognize the renamed WEB backend and the newly-created ACME backend.
+declare -A patched=()
+while IFS='=' read -r key value; do patched["$key"]="$value"; done < <(discover_haproxy_ports "$tmp")
+assert_eq true "${patched[ACME_BACKEND_PRESENT]}" "ACME backend present flag"
+assert_eq 127.0.0.1 "${patched[ACME_WEBROOT_HOST]}" "discovered ACME host"
+assert_eq 18080 "${patched[ACME_WEBROOT_PORT]}" "discovered ACME port"
+assert_eq 25080 "${patched[WEB_HTTP_PORT]}" "WEB listener after backend rename"
 
 # Initial MTProxyL config may not have Remnawave installed yet.
-tmp_no_xray="$(mktemp)"
-tmp_no_xray_patched="$(mktemp)"
-trap 'rm -f "$tmp" "$tmp_no_xray" "$tmp_no_xray_patched"' EXIT
 sed '/^backend remnawave_xray$/,$d' "$ROOT/tests/fixtures/haproxy.cfg" > "$tmp_no_xray"
 declare -A initial=()
 while IFS='=' read -r key value; do initial["$key"]="$value"; done < <(discover_haproxy_ports "$tmp_no_xray")
 assert_eq false "${initial[XRAY_BACKEND_PRESENT]}" "Xray backend absent flag"
 assert_eq 127.0.0.1 "${initial[XRAY_LOOPBACK_HOST]}" "default Xray host without backend"
 assert_eq 1443 "${initial[XRAY_LOOPBACK_PORT]}" "default Xray port without backend"
+
 python3 "$ROOT/lib/haproxy_config.py" "$tmp_no_xray" "$tmp_no_xray_patched" \
   --domains "gateway.example.com sync.example.com" --web-domain "cdn.example.com" \
+  --redirect-domains "api.example.com cdn.example.com gateway.example.com sync.example.com" \
+  --acme-host 127.0.0.1 --acme-port 18080 \
   --http-port 80 --https-port 443 --xray-host 127.0.0.1 --xray-port 1443 \
   --mtproto-host 127.0.0.1 --mtproto-port 15443 \
   --web-tls-host 127.0.0.1 --web-tls-port 15444 \
@@ -85,17 +101,7 @@ grep -Fq 'server remnawave 127.0.0.1:1443' "$tmp_no_xray_patched"
 grep -Fq 'use_backend remnawave_xray if remnawave_sni' "$tmp_no_xray_patched"
 grep -Fq 'server acme 127.0.0.1:18080' "$tmp_no_xray_patched"
 
-# The patched output must be discoverable even after the WEB backend rename.
-declare -A patched=()
-while IFS='=' read -r key value; do patched["$key"]="$value"; done < <(discover_haproxy_ports "$tmp")
-assert_eq true "${patched[ACME_BACKEND_PRESENT]}" "ACME backend present flag"
-assert_eq 127.0.0.1 "${patched[ACME_WEBROOT_HOST]}" "discovered ACME host"
-assert_eq 18080 "${patched[ACME_WEBROOT_PORT]}" "discovered ACME port"
-assert_eq 15080 "${patched[WEB_HTTP_PORT]}" "WEB listener after backend rename"
-
-# Re-running the patcher is idempotent.
-tmp_idempotent="$(mktemp)"
-trap 'rm -f "$tmp" "$tmp_no_xray" "$tmp_no_xray_patched" "$tmp_idempotent"' EXIT
+# Re-running the patcher with the same inputs must not duplicate rules or backends.
 python3 "$ROOT/lib/haproxy_config.py" "$tmp" "$tmp_idempotent" \
   --domains "gateway.example.com sync.example.com" --web-domain "cdn.example.com" \
   --redirect-domains "api.example.com cdn.example.com gateway.example.com sync.example.com" \
@@ -107,30 +113,5 @@ python3 "$ROOT/lib/haproxy_config.py" "$tmp" "$tmp_idempotent" \
   --static-host 127.0.0.1 --static-port 25481 \
   --selfsteal-backend-host 127.0.0.1 --selfsteal-backend-port 25482 --selfsteal-port 9444
 diff -u "$tmp" "$tmp_idempotent"
-
-echo "HAProxy discovery and config patch tests passed."
- "$tmp"
-
-# Initial MTProxyL config may not have Remnawave installed yet.
-tmp_no_xray="$(mktemp)"
-tmp_no_xray_patched="$(mktemp)"
-trap 'rm -f "$tmp" "$tmp_no_xray" "$tmp_no_xray_patched"' EXIT
-sed '/^backend remnawave_xray$/,$d' "$ROOT/tests/fixtures/haproxy.cfg" > "$tmp_no_xray"
-declare -A initial=()
-while IFS='=' read -r key value; do initial["$key"]="$value"; done < <(discover_haproxy_ports "$tmp_no_xray")
-assert_eq false "${initial[XRAY_BACKEND_PRESENT]}" "Xray backend absent flag"
-assert_eq 127.0.0.1 "${initial[XRAY_LOOPBACK_HOST]}" "default Xray host without backend"
-assert_eq 1443 "${initial[XRAY_LOOPBACK_PORT]}" "default Xray port without backend"
-python3 "$ROOT/lib/haproxy_config.py" "$tmp_no_xray" "$tmp_no_xray_patched" \
-  --domains "gateway.example.com sync.example.com" --web-domain "cdn.example.com" \
-  --http-port 80 --https-port 443 --xray-host 127.0.0.1 --xray-port 1443 \
-  --mtproto-host 127.0.0.1 --mtproto-port 15443 \
-  --web-tls-host 127.0.0.1 --web-tls-port 15444 \
-  --web-http-host 127.0.0.1 --web-http-port 15080 \
-  --static-host 127.0.0.1 --static-port 15481 \
-  --selfsteal-backend-host 127.0.0.1 --selfsteal-backend-port 15481 --selfsteal-port 8444
-grep -Fq 'backend remnawave_xray' "$tmp_no_xray_patched"
-grep -Fq 'server remnawave 127.0.0.1:1443' "$tmp_no_xray_patched"
-grep -Fq 'use_backend remnawave_xray if remnawave_sni' "$tmp_no_xray_patched"
 
 echo "HAProxy discovery and config patch tests passed."
