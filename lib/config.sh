@@ -13,6 +13,11 @@ load_config(){
  if [[ -z "${REMNAWAVE_SNI_DOMAINS:-}" ]]; then
   REMNAWAVE_SNI_DOMAINS="${PANEL_DOMAIN:-} ${SUBSCRIPTION_DOMAIN:-} ${SELFSTEAL_DOMAIN:-} ${REMNAWAVE_EXTRA_DOMAINS:-}"
  fi
+ # HTTP redirects are opt-in to preserve the existing strict behavior.
+ HTTP_REDIRECT_DOMAINS="${HTTP_REDIRECT_DOMAINS:-}"
+ ACME_WEBROOT_HOST="${ACME_WEBROOT_HOST:-127.0.0.1}"
+ ACME_WEBROOT_PORT="${ACME_WEBROOT_PORT:-18080}"
+ XRAY_LISTENER_REQUIRED="${XRAY_LISTENER_REQUIRED:-0}"
  if (( allexport_was_enabled == 0 )); then set +a; fi
 }
 require_domains(){
