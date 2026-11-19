@@ -6,7 +6,7 @@ Safety-first deployment orchestrator for a single-server stack built around **eG
 
 ## Feature branch: HTTP redirects and SelfSteal website
 
-This branch extends the MTProxyL-managed HAProxy integration with two **independent, opt-in settings**. The behavior below describes the intended scope of this branch; until the implementation and tests are merged, the existing behavior remains unchanged.
+This branch extends the MTProxyL-managed HAProxy integration. The opt-in HTTP → HTTPS redirect and dedicated ACME HTTP-01 backend are implemented and covered by regression tests. The SelfSteal website choices described below remain a planned feature and are not installed or managed by the current code.
 
 ### HTTP → HTTPS redirects
 
