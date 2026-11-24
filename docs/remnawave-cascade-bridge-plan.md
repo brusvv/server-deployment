@@ -31,11 +31,11 @@ The client-facing XHTTP transport and the inter-node Shadowsocks transport are s
 | Web application proxy | Nginx behind HAProxy |
 | A/B private network | Not assumed; verify provider support before choosing public or private transport |
 
-The bridge is **disabled by default**. Set `SS_BRIDGE_ENABLED=1` in `config/ports.env` (or use `./install.sh --configure-bridge`) to include it in the intended deployment. `SS_BRIDGE_PORT` defaults to **9999**, matching eGamesAPI's current `SR_DEFAULT_PORT=9999`, but can be changed during the interactive setup. The selected port is shared by the B-side SS inbound, A-side SS outbound and B-side TCP+UDP firewall allowlist. A valid port is 1–65535; verify that it is free for both TCP and UDP on B and permitted by the provider.
+The bridge is **disabled by default**. Set `SS_BRIDGE_ENABLED=1` in `config/ports.env` (or use `./install.sh --configure-bridge`) to include it in the intended deployment. `SS_BRIDGE_PORT` defaults to **9999**, matching eGamesAPI's current `SR_DEFAULT_PORT=9999`, but can be changed during the interactive setup. The selected port is shared by the B-side SS inbound, A-side SS outbound and B-side TCP+UDP firewall allowlist. A valid port is 1–65535 except 2222, which is reserved as the eGamesAPI node-control default; verify that it is free for both TCP and UDP on B and permitted by the provider.
 
 When the bridge is disabled, skip bridge inbound/outbound creation, bridge firewall rules and Geo Bridge routing changes. Do not activate the `direct` catch-all policy without a working SS outbound. If an already deployed bridge is being disabled, first revert/remove the Entry routing rules and SS outbound, then disable the B-side inbound and remove its source-restricted firewall rule; do not simply stop the Exit listener while the Entry profile still routes traffic into it.
 
-The setup wizard only records the local target settings and backs up `config/ports.env`; it does not provision a Remnawave inbound/outbound, change a profile, open a firewall or touch either VPS.
+The setup wizard records the local target settings and backs up `config/ports.env`. The managed eGamesAPI adapter below consumes this file at runtime: it blocks new setup/attachment while disabled and forces the configured port while enabled. The actual Remnawave and firewall operations remain in eGamesAPI and require its explicit confirmation.
 
 ### Historical B port inventory
 
@@ -116,7 +116,34 @@ On VPS B, locate the actual cached module path and run:
 
 If the Node record uses a private Docker gateway address that does not match the selected Exit host, the patch intentionally refuses to enable the exception. In that case inspect the actual Node `address` and adapt the lookup based on the live topology; do not weaken the check to a blanket bypass. eGamesAPI updates may replace the cached module, so rerun the check after updating eGamesAPI.
 
-The patch context was verified against the eGamesAPI Server Routing source at commit `93e6631aae5f7bff28eadfc45faab43150cc22c6`; this does not pin or install that upstream revision.
+The same-box patch context was verified against the eGamesAPI Server Routing source at commit `93e6631aae5f7bff28eadfc45faab43150cc22c6`; this does not pin or install that upstream revision.
+
+#### Managed bridge toggle and port adapter
+
+The second adapter patch connects \`SS_BRIDGE_ENABLED\` and \`SS_BRIDGE_PORT\` to eGamesAPI's own Server Routing workflow. Apply it only after the same-box compatibility patch:
+
+\`\`\`bash
+sudo python3 checks/egamesapi-bridge-integration.py --check \\
+  --config-file /opt/server-deployment/config/ports.env \\
+  /absolute/path/to/server_routing.sh
+
+sudo python3 checks/egamesapi-bridge-integration.py --apply \\
+  --config-file /opt/server-deployment/config/ports.env \\
+  /absolute/path/to/server_routing.sh
+\`\`\`
+
+Use the actual checkout path if \`SD_INSTALL_DIR\` differs from \`/opt/server-deployment\`. This patch:
+
+- Reads only the two bridge settings from the selected \`config/ports.env\`; it does not source or execute that file.
+- Loads the selected port when eGamesAPI setup starts and rejects a different port at its prompt, preventing inbound/outbound/firewall port drift.
+- Blocks \`sr_setup\` and \`sr_attach_profile\` while \`SS_BRIDGE_ENABLED=0\`.
+- Leaves \`sr_teardown\` available while disabled, so the existing bridge can be removed safely.
+- Requires the already patched same-box guard, and makes no API request or live change itself.
+
+**Disable sequence:** open \`Расширения ноды → Серверный роутинг (мост)\`, select the configured Geo Bridge and run its Teardown action first. eGamesAPI removes the bridge routes/outbound from the attached Entry profiles, deletes its service user and squad, and removes the recorded UFW allow rules. Its current teardown deliberately retains the Exit Node and Config Profile; it does not automatically remove the SS inbound from that profile. Only after teardown succeeds should \`SS_BRIDGE_ENABLED\` be set to \`0\`. This avoids leaving Entry traffic pointed at a stopped Exit listener. The adapter's off switch blocks new setup/attachment; it is not a remote cleanup command.
+
+If the eGamesAPI module changes, both patchers fail closed on unknown source context. Recheck and reapply them only after reviewing the changed upstream module.
+
 
 ## Primary routing policy
 

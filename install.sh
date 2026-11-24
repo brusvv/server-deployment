@@ -99,12 +99,12 @@ configure_bridge(){
    candidate="${candidate:-$current_port}"
    if [[ "$candidate" =~ ^[0-9]{1,5}$ ]]; then
     port_number=$((10#$candidate))
-    if (( port_number >= 1 && port_number <= 65535 )); then
+    if (( port_number >= 1 && port_number <= 65535 && port_number != 2222 )); then
      port_value="$port_number"
      break
     fi
    fi
-   warn "Enter a numeric port from 1 to 65535."
+   warn "Enter a numeric port from 1 to 65535, except 2222 (node control port)."
   done
  fi
  persist_bridge_settings "$enabled" "$port_value"

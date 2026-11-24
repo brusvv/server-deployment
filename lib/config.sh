@@ -31,7 +31,7 @@ load_config(){
  [[ "$SS_BRIDGE_PORT" =~ ^[0-9]{1,5}$ ]] || die "SS_BRIDGE_PORT must be an integer from 1 to 65535"
  local bridge_port_number
  bridge_port_number=$((10#$SS_BRIDGE_PORT))
- (( bridge_port_number >= 1 && bridge_port_number <= 65535 )) || die "SS_BRIDGE_PORT must be an integer from 1 to 65535"
+ (( bridge_port_number >= 1 && bridge_port_number <= 65535 && bridge_port_number != 2222 )) || die "SS_BRIDGE_PORT must be from 1 to 65535, except 2222 (node control port)"
  SS_BRIDGE_PORT="$bridge_port_number"
  if (( allexport_was_enabled == 0 )); then set +a; fi
 }

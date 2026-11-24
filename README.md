@@ -223,7 +223,7 @@ VLESS Route is intentionally deferred. Do not configure the VLESS Route bridge d
 
 - The bridge is disabled by default: `SS_BRIDGE_ENABLED="0"` in `config/ports.env`.
 - Run `./install.sh --configure-bridge` to choose enabled/disabled and, when enabled, the TCP+UDP port (default `9999`). An interactive full `./install.sh --run` asks the same questions before the stages begin.
-- Valid port range: `1–65535`. Preflight checks the selected TCP and UDP port only when the bridge is enabled, and stops on a collision.
+- Valid port range: `1–65535`, excluding `2222` (the eGamesAPI node-control default). Preflight checks the selected TCP and UDP port only when the bridge is enabled, and stops on a collision.
 - Check-only and non-interactive runs never prompt; they use the saved settings.
 
-The wizard updates only the local `config/ports.env` file and creates a timestamped backup. It does **not** create Remnawave inbounds/outbounds, modify profiles, apply firewall rules or change either VPS. Those provisioning operations remain explicit integration work; see [the cascade plan](docs/remnawave-cascade-bridge-plan.md).
+The wizard updates only the local `config/ports.env` file and creates a timestamped backup. On VPS B, the eGamesAPI adapter can read that file at runtime: it blocks new bridge setup/attachment while disabled and forces the configured port while enabled. Actual Remnawave inbound, service user/squad, Entry outbound/routing and source-restricted firewall operations still run through the eGamesAPI Server Routing workflow with explicit confirmation; see [the cascade plan](docs/remnawave-cascade-bridge-plan.md).
