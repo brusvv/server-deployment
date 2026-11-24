@@ -48,7 +48,10 @@ while (($#)); do
  esac; shift
 done
 export SD_MODE="$MODE" SD_DRY_RUN="$DRY_RUN"
+# Export loaded port/service/domain values to child stage processes.
+set -a
 load_config
+set +a
 init_logging
 run_stage(){ local name="$1" file="$2"; info "===== $name ====="; bash "$ROOT_DIR/modules/$file"; }
 if [[ "$STAGE" == all ]]; then
