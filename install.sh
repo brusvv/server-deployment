@@ -72,7 +72,7 @@ PY
   info "Shadowsocks bridge settings are unchanged."
   return 0
  fi
- backup="${file}.before-server-deployment.$(date -u +%Y%m%dT%H%M%SZ).$"
+ backup="${file}.before-server-deployment.$(date -u +%Y%m%dT%H%M%SZ).${BASHPID}"
  cp -a "$file" "$backup"
  mv -f -- "$tmp" "$file"
  info "Bridge settings saved; local config backup: $backup"
