@@ -66,7 +66,7 @@ Do not assume the node control port is 2222 until the actual Panel node record a
 
 ## What the eGamesAPI bridge actually does
 
-The current eGamesAPI Server Routing implementation and the Remnawave server-routing guide establish this model:
+The current eGamesAPI Server Routing implementation and the Remnawave server-routing guide establish this model. The eGamesAPI repository itself labels its installer an educational example and warns that it is not for production; use its documented architecture and source as a reference, not as an installer to execute blindly:
 
 1. On the **exit Node**, create or append a Shadowsocks inbound. The reference config uses protocol `shadowsocks`, method `chacha20-ietf-poly1305`, `network: "tcp,udp"`, and an inbound port (9999 by default).
 2. Create a service-only Internal Squad containing that inbound and a service user whose SS password is generated/stored by the panel workflow.
