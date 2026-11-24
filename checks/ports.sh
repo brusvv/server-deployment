@@ -14,16 +14,16 @@ done
 # The bridge port is expected to be unused before the SS inbound is deployed.
 # Check TCP and UDP independently; the bridge will need both transports.
 if [[ -n "${SS_BRIDGE_PORT:-}" ]]; then
- for transport in tcp udp; do
-  case "$transport" in
-   tcp) socket_filter="-lnt" ;;
-   udp) socket_filter="-lnu" ;;
-  esac
-  if ss -H $socket_filter "( sport = :$SS_BRIDGE_PORT )" 2>/dev/null | grep -q .; then
-   warn "$transport $SS_BRIDGE_PORT is occupied; inspect before enabling the bridge"
-   ss "$socket_filter" -p "( sport = :$SS_BRIDGE_PORT )" || true
-  else
-   info "$transport $SS_BRIDGE_PORT is free"
-  fi
- done
+ if ss -H -lnt "( sport = :$SS_BRIDGE_PORT )" 2>/dev/null | grep -q .; then
+  warn "TCP $SS_BRIDGE_PORT is occupied; inspect before enabling the bridge"
+  ss -lntp "( sport = :$SS_BRIDGE_PORT )" || true
+ else
+  info "TCP $SS_BRIDGE_PORT is free"
+ fi
+ if ss -H -lnu "( sport = :$SS_BRIDGE_PORT )" 2>/dev/null | grep -q .; then
+  warn "UDP $SS_BRIDGE_PORT is occupied; inspect before enabling the bridge"
+  ss -lnup "( sport = :$SS_BRIDGE_PORT )" || true
+ else
+  info "UDP $SS_BRIDGE_PORT is free"
+ fi
 fi
