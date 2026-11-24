@@ -32,9 +32,10 @@ backup="$(find "$tmp" -maxdepth 1 -name 'server_routing.sh.before-server-deploym
 cmp -s "$tmp/original.sh" "$backup"
 
 python3 "$ROOT/checks/egamesapi-local-exit-compat.py" --check "$module" >/dev/null
-if printf 'APPLY\n' | python3 "$ROOT/checks/egamesapi-local-exit-compat.py" --apply "$module" >/dev/null 2>&1; then
-  echo "FAIL: applying an already patched module should be a no-op" >&2
-  exit 1
-fi
-
+before_count="$(find "$tmp" -maxdepth 1 -name 'server_routing.sh.before-server-deployment.*' -type f | wc -l)"
+cp "$module" "$tmp/patched-before-idempotency.sh"
+printf 'APPLY\\n' | python3 "$ROOT/checks/egamesapi-local-exit-compat.py" --apply "$module" >/dev/null
+after_count="$(find "$tmp" -maxdepth 1 -name 'server_routing.sh.before-server-deployment.*' -type f | wc -l)"
+[[ "$before_count" == "$after_count" ]]
+cmp -s "$tmp/patched-before-idempotency.sh" "$module"
 echo "eGamesAPI local Exit compatibility patch tests passed."
