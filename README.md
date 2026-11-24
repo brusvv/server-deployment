@@ -185,12 +185,13 @@ The branch's `install.sh` bootstrap still defaults to cloning `main` when run fr
 
 ## Remnawave cascade branch
 
-This branch adds the planning baseline for **VPS A (Entry) → VPS B (Panel + Exit)**.
+This branch implements the main route for **VPS A (Russia — Entry) → VPS B (abroad — Panel + Exit)**.
 
 - Client-facing VLESS + XHTTP terminates on A.
 - A → B uses a dedicated Shadowsocks bridge over TCP + UDP with `chacha20-ietf-poly1305`.
+- The primary eGamesAPI Geo Bridge policy is `direct`: Russian IP/domain destinations leave directly through A; other traffic from the selected public profile is sent through the SS bridge and exits via B.
 - The current bridge port contract reserves `9999/tcp+udp` on B, following the eGamesAPI default. It is a planned value, not a claim that the port is currently free or listening.
-- MTProto/Telemt is a separate service on B. It has its own client listener and outbound connectivity to Telegram DCs; it does not use the Shadowsocks bridge or need a separate Remnawave Exit Node.
+- MTProto/Telemt is a separate service on B. Its Telegram traffic does not use the Shadowsocks bridge.
 
 Before any deployment, run the read-only inventory on each VPS:
 
@@ -199,9 +200,21 @@ Before any deployment, run the read-only inventory on each VPS:
 
 Run each command on the server identified by the argument. The audit does not read secrets, service environments, Docker environment variables or process command lines. Its output does include network addresses and firewall source addresses; review those before sharing.
 
+### eGamesAPI local Exit compatibility
+
+The stock eGamesAPI Server Routing module rejects an Exit host that matches the Panel's public IP, even when that host is the already registered local Node on VPS B. This branch includes a narrow, fail-closed compatibility patch. It allows the co-located Exit only when eGamesAPI can find the matching Node record, its profile, and a connected state; it does not disable the guard generally or permit a new/unknown local Node.
+
+Locate the module on B, check the exact patch context, then apply it interactively:
+
+    sudo find /opt/remnawave -type f -name server_routing.sh -print
+    sudo python3 checks/egamesapi-local-exit-compat.py --check /path/to/server_routing.sh
+    sudo python3 checks/egamesapi-local-exit-compat.py --apply /path/to/server_routing.sh
+
+If the check says the module is not patchable, stop. Do not edit the guard manually; inspect the installed eGamesAPI version and Node address first. The patch creates a timestamped backup and validates Bash syntax before replacing the module.
+
 Design notes:
 
 - [Remnawave cascade bridge plan](docs/remnawave-cascade-bridge-plan.md)
 - [MTProto networking model](docs/mtproto-networking.md)
 
-The upstream eGamesAPI Server Routing wizard includes a same-box guard for an Exit host matching the Panel's public IP. This branch documents the required local-Node adapter; do not run the stock wizard unchanged for Panel + Exit on B.
+VLESS Route is intentionally deferred. Do not configure the VLESS Route bridge during this phase.

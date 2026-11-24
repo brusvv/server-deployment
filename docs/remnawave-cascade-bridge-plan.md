@@ -4,11 +4,12 @@
 
 Implement and validate the two-node Remnawave topology:
 
-- **VPS A — Entry:** public client entry point. Client-facing transport is VLESS + XHTTP.
-- **VPS B — Panel + Exit:** Remnawave Panel and the egress Xray Node share VPS B. This is an intentional co-location decision; the exact Panel/Node version and local control-plane path must be tested.
+- **VPS A — Russia / Entry:** Russian public client entry point. Client-facing transport is VLESS + XHTTP.
+- **VPS B — abroad / Panel + Exit:** the foreign egress server hosts the Remnawave Panel and its local Xray Node. This is an intentional co-location decision; the exact Panel/Node version and local control-plane path must be tested.
 - **A → B transport:** dedicated Shadowsocks bridge, TCP + UDP, cipher `chacha20-ietf-poly1305`.
+- **Primary routing policy:** eGamesAPI Geo Bridge `direct` mode — Russian IP/domain destinations leave directly through Russian VPS A; all other traffic from the selected public Entry profile is sent through the SS bridge and leaves via foreign VPS B.
 
-The client-facing XHTTP transport and the inter-node Shadowsocks transport are separate layers.
+The client-facing XHTTP transport and the inter-node Shadowsocks transport are separate layers. The later VLESS Route option is out of scope for this phase.
 
 ## Decisions and port contract
 
@@ -94,14 +95,35 @@ The underlying implementation has a reusable path for an **already registered ex
 
 This is a deliberate compatibility adapter, not permission to bypass the same-box check blindly. If the local B Node is missing, disconnected, or its profile cannot be read, stop and diagnose instead of switching its profile or installing another Node automatically.
 
-## Routing modes
+#### Narrow eGamesAPI same-box compatibility patch
 
-The eGamesAPI Geo Bridge has two split directions; keep their meaning explicit:
+The inspected eGamesAPI module rejects an Exit host whose resolved public IPv4 equals the Panel public IPv4, before it reaches the existing-node reuse path. The repository patcher replaces only that exact guard with a narrower check:
 
-1. **RU direct / everything else through B** (`direct` mode in the eGamesAPI module): Russian IP/domain rules go to A's DIRECT outbound; the catch-all for the selected Entry inbound goes through the SS bridge to B.
-2. **RU through B / everything else stays direct on A** (`bridge` mode in the eGamesAPI module): Russian IP/domain rules go through SS; no catch-all is added, so remaining traffic keeps the Entry profile's existing egress.
-3. **Full Tunnel (custom policy):** all eligible traffic from the selected Entry inbound goes through B. Must fail closed if the SS bridge is unavailable; no silent direct-egress fallback. This is not the same as either eGamesAPI Geo Bridge direction and requires explicit catch-all and outage tests.
-4. **VLESS Route:** optional per-user/per-host exit selection. This is a separate panel feature using `vlessRouteId` in the generated host/UUID and a matching routing rule; it is not the SS transport itself.
+- The same-box exception is accepted only if `sr_find_node_by_host "$host"` finds the already registered Node, its active profile UUID is present, and `isConnected` is true.
+- If the module has changed, the Node cannot be matched by the selected Exit host, or the Node is disconnected, the patcher/setup remains fail-closed.
+- It does not install a Node, add an inbound, switch a profile, alter a firewall, or modify the Panel API. Those remain separate, visible eGamesAPI wizard actions.
+- The patcher is version/context guarded, makes a timestamped backup, validates the resulting module with `bash -n`, and requires an explicit typed confirmation.
+
+On VPS B, locate the actual cached module path and run:
+
+    sudo python3 checks/egamesapi-local-exit-compat.py --check /absolute/path/to/server_routing.sh
+    sudo python3 checks/egamesapi-local-exit-compat.py --apply /absolute/path/to/server_routing.sh
+
+If the Node record uses a private Docker gateway address that does not match the selected Exit host, the patch intentionally refuses to enable the exception. In that case inspect the actual Node `address` and adapt the lookup based on the live topology; do not weaken the check to a blanket bypass. eGamesAPI updates may replace the cached module, so rerun the check after updating eGamesAPI.
+
+The patch context was verified against the eGamesAPI Server Routing source at commit `93e6631aae5f7bff28eadfc45faab43150cc22c6`; this does not pin or install that upstream revision.
+
+## Primary routing policy
+
+The main phase uses eGamesAPI Geo Bridge **`direct` mode**. This is the correct direction for a Russian Entry and a foreign Exit:
+
+1. `geoip:ru` destinations use the Entry Node's `DIRECT` outbound and leave from Russian VPS A.
+2. `geosite:category-ru` destinations also use `DIRECT` on A.
+3. The selected public profile's remaining traffic is caught by an `inboundTag` rule and sent to the Shadowsocks outbound; it leaves through foreign VPS B.
+
+Do **not** select eGamesAPI's `bridge` mode for this topology: that mode sends RU destinations through the bridge and leaves the rest on A. The eGamesAPI module's own mode-selection comment distinguishes these two directions.
+
+This policy is a geographic split, not a literal full tunnel. A later request to force even Russian destinations through B would require a separately designed Full Tunnel policy and outage tests. **VLESS Route** is another separate feature: it adds a selectable per-user/per-host exit using `vlessRouteId`; it is explicitly deferred until the primary bridge is stable.
 
 Xray routing is first-match-wins. Private-address and block rules, admin rules, geo/domain lists, and catch-all rules must be reviewed in their final merged order. Test domain resolution strategy, GeoIP list source/version, IPv4/IPv6, CDN/Anycast and stale GeoIP cases. Do not treat an IP geolocation result as the legal or commercial country of a website.
 
@@ -133,21 +155,25 @@ The MTProto frontend, its HAProxy SNI routing, secrets and backend port must rem
 
 ## Implementation phases
 
-1. **Read-only inventory:** run `checks/cascade-audit.sh A` on A and `checks/cascade-audit.sh B` on B. Confirm addresses, provider private-network availability, OS, listener ownership, Node control port, current MTProxyL/HAProxy layout and firewall. Do not paste secrets.
-2. **Port and transport contract:** verify 9999 TCP/UDP is free on B; confirm source address and firewall/provider rules; test MTU and TCP/UDP reachability.
-3. **Clean B deployment plan:** pin Remnawave/eGamesAPI/Node versions; confirm Panel+local-Node co-location; plan HAProxy → Nginx → Panel and the separate subscription hostname.
-4. **B setup:** install Panel and the local Exit Node; add the dedicated SS inbound to the existing Node profile; verify listener and source-restricted firewall from A.
-5. **A setup:** register/configure the Entry Node under Panel B; configure the SS outbound to B and client-facing VLESS + XHTTP; test one controlled profile.
-6. **Routing policy:** implement the selected Geo Split or Full Tunnel mode independently; VLESS Route is a separate optional feature.
-7. **Validation:** test TCP and UDP, DNS, IPv4/IPv6, direct-vs-bridge egress, B outage/fail-closed behavior, Panel allowlist, public subscription access, MTProto reachability and reboot persistence.
-8. **Operations:** write rollback, secret rotation, health-check, MTProto config-update and recovery procedures.
+1. **Read-only inventory:** run `checks/cascade-audit.sh A` on A and `checks/cascade-audit.sh B` on B. Confirm each server's public/source address, provider private-network availability, OS, listener ownership, Node control port, current MTProxyL/HAProxy layout and firewall. Do not paste secrets.
+2. **Port and transport contract:** verify 9999 TCP and UDP are free on B; identify A's real egress/source address (including NAT); confirm provider/UFW rules; test MTU and both transport protocols.
+3. **B deployment:** install the Panel and local Exit Node on foreign VPS B. Preserve the intended HAProxy → Nginx → Panel ownership of web ports and keep the subscription hostname separate. Pin and review upstream versions before execution.
+4. **A registration:** register the Russian Entry Node A in Panel B, keep its control-plane port reachable from B only, and confirm the Node is connected with the intended public VLESS + XHTTP inbound/profile.
+5. **Local Exit adapter:** confirm B's Exit Node already exists and is connected; configure SSH access to B for the eGamesAPI remote-exec helper; run the guarded same-box compatibility patch above. Do not use the new-node/install or profile-switch path to replace a working B Node.
+6. **Create the primary Geo Bridge:** in `Расширения ноды → Серверный роутинг (мост)`, choose B as the Exit, use the agreed port 9999 unless the audit shows a conflict, choose `direct` mode, and attach the intended public Entry profile on A. When the existing B Node has active user-facing inbounds, choose the add-inbound option so its existing active inbound UUIDs remain enabled.
+7. **Validate:** test TCP and UDP, DNS, IPv4/IPv6, RU-direct vs non-RU-through-B egress, B outage behavior, Panel allowlist, public subscription access, MTProto reachability and reboot persistence. Confirm the bridge port on B is source-restricted to A.
+8. **Operations:** document rollback, bridge-secret rotation, health checks, eGamesAPI update/re-patch, MTProto config-update and recovery procedures.
+
+VLESS Route and a custom Full Tunnel are not part of this implementation phase.
 
 ## Acceptance criteria
 
 - B's bridge listener on 9999 accepts traffic from A only, for TCP and UDP.
-- A's selected profile exits through B and reports B's expected egress address.
-- Full Tunnel has no direct fallback when B or the bridge is unavailable.
-- Both Geo Split directions match their documented rule order.
+- Russian destinations from the selected public Entry profile leave through A.
+- Non-Russian destinations from the selected public Entry profile leave through B and report B's expected egress address.
+- If B or the bridge is unavailable, the non-Russian path does not silently fall back to direct egress on A; RU-direct destinations remain local to A.
+- The eGamesAPI same-box exception works only for the already registered, connected local B Node; unknown or disconnected Nodes remain rejected.
+- Existing active inbounds on B remain active when the SS inbound is appended.
 - Panel access is denied outside the allowlist; subscription delivery works independently.
 - MTProto continues to accept clients through its configured HAProxy/Telemt path and can reach Telegram DCs without using the SS bridge.
 - HAProxy remains the only public 80/443 owner; Nginx is internal behind it.
