@@ -14,6 +14,7 @@ done
 # The optional bridge listener is checked only when explicitly enabled.
 # Check TCP and UDP independently; the bridge needs both transports.
 if [[ "${SS_BRIDGE_ENABLED:-0}" == "1" ]]; then
+ command -v ss >/dev/null 2>&1 || die "The ss command (iproute2) is required to verify the enabled bridge port"
  if ss -H -lnt "( sport = :$SS_BRIDGE_PORT )" 2>/dev/null | grep -q .; then
   ss -lntp "( sport = :$SS_BRIDGE_PORT )" || true
   die "TCP $SS_BRIDGE_PORT is occupied; choose another SS_BRIDGE_PORT"

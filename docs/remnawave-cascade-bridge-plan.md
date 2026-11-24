@@ -7,7 +7,7 @@ Implement and validate the two-node Remnawave topology:
 - **VPS A — Russia / Entry:** Russian public client entry point. Client-facing transport is VLESS + XHTTP.
 - **VPS B — abroad / Panel + Exit:** the foreign egress server hosts the Remnawave Panel and its local Xray Node. This is an intentional co-location decision; the exact Panel/Node version and local control-plane path must be tested.
 - **A → B transport:** optional dedicated Shadowsocks bridge, TCP + UDP, cipher `chacha20-ietf-poly1305`; enabled explicitly during setup.
-- **Primary routing policy:** eGamesAPI Geo Bridge `direct` mode — Russian IP/domain destinations leave directly through Russian VPS A; all other traffic from the selected public Entry profile is sent through the SS bridge and leaves via foreign VPS B.
+- **Primary routing policy (when enabled):** eGamesAPI Geo Bridge `direct` mode — Russian IP/domain destinations leave directly through Russian VPS A; all other traffic from the selected public Entry profile is sent through the SS bridge and leaves via foreign VPS B. When disabled, do not apply the bridge routing rules.
 
 The client-facing XHTTP transport and the inter-node Shadowsocks transport are separate layers. The later VLESS Route option is out of scope for this phase.
 
@@ -20,7 +20,7 @@ The client-facing XHTTP transport and the inter-node Shadowsocks transport are s
 | Exit Xray Node | VPS B |
 | Entry Xray Node | VPS A |
 | Client protocol/transport | VLESS + XHTTP on A |
-| A → B bridge | Shadowsocks TCP + UDP |
+| A → B bridge | Optional Shadowsocks TCP + UDP (`SS_BRIDGE_ENABLED`) |
 | SS cipher | `chacha20-ietf-poly1305` |
 | SS bridge enabled by default | **No**; explicit opt-in (`SS_BRIDGE_ENABLED=1`) |
 | SS bridge default port | **9999/tcp + 9999/udp**; configurable (`SS_BRIDGE_PORT`) |
@@ -52,7 +52,7 @@ The following values come from the repository's historical reference baseline da
 | `127.0.0.1:15481/tcp` | Static/Selfmask backend | Local backend |
 | `127.0.0.1:18080/tcp` | ACME HTTP-01 webroot | Local backend |
 | `127.0.0.1:1443/tcp` | Reserved Xray loopback target | Was not listening in the historical snapshot |
-| `0.0.0.0:$SS_BRIDGE_PORT/tcp+udp (default 9999; only when enabled)` | Proposed Shadowsocks bridge listener | New; allow only A as source |
+| `0.0.0.0:$SS_BRIDGE_PORT/tcp+udp` (default 9999; only when enabled) | Proposed Shadowsocks bridge listener | New; allow only A as source |
 
 **Do not reuse 15443 for Shadowsocks.** It belongs to the historical MTProto backend. Do not expose Telemt's management API or metrics ports publicly.
 
@@ -120,7 +120,7 @@ The patch context was verified against the eGamesAPI Server Routing source at co
 
 ## Primary routing policy
 
-The main phase uses eGamesAPI Geo Bridge **`direct` mode**. This is the correct direction for a Russian Entry and a foreign Exit:
+When `SS_BRIDGE_ENABLED=1`, use eGamesAPI Geo Bridge **`direct` mode**. This is the correct direction for a Russian Entry and a foreign Exit. When the bridge is disabled, do not apply these routing changes and leave the Entry profile routing untouched:
 
 1. `geoip:ru` destinations use the Entry Node's `DIRECT` outbound and leave from Russian VPS A.
 2. `geosite:category-ru` destinations also use `DIRECT` on A.
@@ -178,7 +178,7 @@ This is a configuration contract and preflight gate, not automated bridge provis
 3. **B deployment:** install the Panel and local Exit Node on foreign VPS B. Preserve the intended HAProxy → Nginx → Panel ownership of web ports and keep the subscription hostname separate. Pin and review upstream versions before execution.
 4. **A registration:** register the Russian Entry Node A in Panel B, keep its control-plane port reachable from B only, and confirm the Node is connected with the intended public VLESS + XHTTP inbound/profile.
 5. **Local Exit adapter:** confirm B's Exit Node already exists and is connected; configure SSH access to B for the eGamesAPI remote-exec helper; run the guarded same-box compatibility patch above. Do not use the new-node/install or profile-switch path to replace a working B Node.
-6. **Create the primary Geo Bridge:** in `Расширения ноды → Серверный роутинг (мост)`, choose B as the Exit, use the configured `SS_BRIDGE_PORT` (default 9999) unless the audit shows a conflict, choose `direct` mode, and attach the intended public Entry profile on A. When the existing B Node has active user-facing inbounds, choose the add-inbound option so its existing active inbound UUIDs remain enabled.
+6. **Create the primary Geo Bridge (only when `SS_BRIDGE_ENABLED=1`):** in `Расширения ноды → Серверный роутинг (мост)`, choose B as the Exit, use the configured `SS_BRIDGE_PORT` (default 9999), choose `direct` mode, and attach the intended public Entry profile on A. When the existing B Node has active user-facing inbounds, choose the add-inbound option so its existing active inbound UUIDs remain enabled. If disabled, skip this phase and leave routing unchanged.
 7. **Validate:** test TCP and UDP, DNS, IPv4/IPv6, RU-direct vs non-RU-through-B egress, B outage behavior, Panel allowlist, public subscription access, MTProto reachability and reboot persistence. Confirm the bridge port on B is source-restricted to A.
 8. **Operations:** document rollback, bridge-secret rotation, health checks, eGamesAPI update/re-patch, MTProto config-update and recovery procedures.
 
@@ -187,9 +187,9 @@ VLESS Route and a custom Full Tunnel are not part of this implementation phase.
 ## Acceptance criteria
 
 - When enabled, B's bridge listener on the configured `SS_BRIDGE_PORT` accepts traffic from A only, for TCP and UDP; when disabled, no bridge listener or allow rule is created.
-- Russian destinations from the selected public Entry profile leave through A.
-- Non-Russian destinations from the selected public Entry profile leave through B and report B's expected egress address.
-- If B or the bridge is unavailable, the non-Russian path does not silently fall back to direct egress on A; RU-direct destinations remain local to A.
+- When enabled, Russian destinations from the selected public Entry profile leave through A.
+- When enabled, non-Russian destinations from the selected public Entry profile leave through B and report B's expected egress address.
+- When enabled, if B or the bridge is unavailable, the non-Russian path does not silently fall back to direct egress on A; RU-direct destinations remain local to A.
 - The eGamesAPI same-box exception works only for the already registered, connected local B Node; unknown or disconnected Nodes remain rejected.
 - Existing active inbounds on B remain active when the SS inbound is appended.
 - Panel access is denied outside the allowlist; subscription delivery works independently.
