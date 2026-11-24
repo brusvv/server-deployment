@@ -15,14 +15,14 @@ done
 # Check TCP and UDP independently; the bridge needs both transports.
 if [[ "${SS_BRIDGE_ENABLED:-0}" == "1" ]]; then
  if ss -H -lnt "( sport = :$SS_BRIDGE_PORT )" 2>/dev/null | grep -q .; then
-  warn "TCP $SS_BRIDGE_PORT is occupied; inspect before enabling the bridge"
   ss -lntp "( sport = :$SS_BRIDGE_PORT )" || true
+  die "TCP $SS_BRIDGE_PORT is occupied; choose another SS_BRIDGE_PORT"
  else
   info "TCP $SS_BRIDGE_PORT is free"
  fi
  if ss -H -lnu "( sport = :$SS_BRIDGE_PORT )" 2>/dev/null | grep -q .; then
-  warn "UDP $SS_BRIDGE_PORT is occupied; inspect before enabling the bridge"
   ss -lnup "( sport = :$SS_BRIDGE_PORT )" || true
+  die "UDP $SS_BRIDGE_PORT is occupied; choose another SS_BRIDGE_PORT"
  else
   info "UDP $SS_BRIDGE_PORT is free"
  fi

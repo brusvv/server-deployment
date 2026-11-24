@@ -190,7 +190,7 @@ This branch implements the main route for **VPS A (Russia — Entry) → VPS B (
 - Client-facing VLESS + XHTTP terminates on A.
 - A → B uses a dedicated Shadowsocks bridge over TCP + UDP with `chacha20-ietf-poly1305`.
 - The primary eGamesAPI Geo Bridge policy is `direct`: Russian IP/domain destinations leave directly through A; other traffic from the selected public profile is sent through the SS bridge and exits via B.
-- The current bridge port contract reserves `9999/tcp+udp` on B, following the eGamesAPI default. It is a planned value, not a claim that the port is currently free or listening.
+- The optional bridge is disabled by default (`SS_BRIDGE_ENABLED=0`). Its configurable `SS_BRIDGE_PORT` defaults to `9999/tcp+udp`; the selected port is not assumed free or listening.
 - MTProto/Telemt is a separate service on B. Its Telegram traffic does not use the Shadowsocks bridge.
 
 Before any deployment, run the read-only inventory on each VPS:
@@ -218,3 +218,12 @@ Design notes:
 - [MTProto networking model](docs/mtproto-networking.md)
 
 VLESS Route is intentionally deferred. Do not configure the VLESS Route bridge during this phase.
+
+### Optional Shadowsocks bridge settings
+
+- The bridge is disabled by default: `SS_BRIDGE_ENABLED="0"` in `config/ports.env`.
+- Run `./install.sh --configure-bridge` to choose enabled/disabled and, when enabled, the TCP+UDP port (default `9999`). An interactive full `./install.sh --run` asks the same questions before the stages begin.
+- Valid port range: `1–65535`. Preflight checks the selected TCP and UDP port only when the bridge is enabled, and stops on a collision.
+- Check-only and non-interactive runs never prompt; they use the saved settings.
+
+The wizard updates only the local `config/ports.env` file and creates a timestamped backup. It does **not** create Remnawave inbounds/outbounds, modify profiles, apply firewall rules or change either VPS. Those provisioning operations remain explicit integration work; see [the cascade plan](docs/remnawave-cascade-bridge-plan.md).

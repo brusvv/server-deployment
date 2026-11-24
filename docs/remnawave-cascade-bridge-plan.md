@@ -6,7 +6,7 @@ Implement and validate the two-node Remnawave topology:
 
 - **VPS A — Russia / Entry:** Russian public client entry point. Client-facing transport is VLESS + XHTTP.
 - **VPS B — abroad / Panel + Exit:** the foreign egress server hosts the Remnawave Panel and its local Xray Node. This is an intentional co-location decision; the exact Panel/Node version and local control-plane path must be tested.
-- **A → B transport:** dedicated Shadowsocks bridge, TCP + UDP, cipher `chacha20-ietf-poly1305`.
+- **A → B transport:** optional dedicated Shadowsocks bridge, TCP + UDP, cipher `chacha20-ietf-poly1305`; enabled explicitly during setup.
 - **Primary routing policy:** eGamesAPI Geo Bridge `direct` mode — Russian IP/domain destinations leave directly through Russian VPS A; all other traffic from the selected public Entry profile is sent through the SS bridge and leaves via foreign VPS B.
 
 The client-facing XHTTP transport and the inter-node Shadowsocks transport are separate layers. The later VLESS Route option is out of scope for this phase.
@@ -22,7 +22,8 @@ The client-facing XHTTP transport and the inter-node Shadowsocks transport are s
 | Client protocol/transport | VLESS + XHTTP on A |
 | A → B bridge | Shadowsocks TCP + UDP |
 | SS cipher | `chacha20-ietf-poly1305` |
-| SS bridge port | **9999/tcp + 9999/udp** |
+| SS bridge enabled by default | **No**; explicit opt-in (`SS_BRIDGE_ENABLED=1`) |
+| SS bridge default port | **9999/tcp + 9999/udp**; configurable (`SS_BRIDGE_PORT`) |
 | SS bridge bind on B | `0.0.0.0` until a provider private-network address is confirmed |
 | Panel hostname | Separate hostname, restricted by allowlist (VPN egress IP + recovery IP) |
 | Subscription hostname | Separate public hostname |
@@ -30,7 +31,11 @@ The client-facing XHTTP transport and the inter-node Shadowsocks transport are s
 | Web application proxy | Nginx behind HAProxy |
 | A/B private network | Not assumed; verify provider support before choosing public or private transport |
 
-The bridge port default of **9999** follows eGamesAPI's current Server Routing module (`SR_DEFAULT_PORT=9999`). It is now reserved in the tracked port contract, but has **not** been probed on either live VPS. Before deployment, verify that neither TCP nor UDP 9999 is already occupied and that the provider permits both protocols.
+The bridge is **disabled by default**. Set `SS_BRIDGE_ENABLED=1` in `config/ports.env` (or use `./install.sh --configure-bridge`) to include it in the intended deployment. `SS_BRIDGE_PORT` defaults to **9999**, matching eGamesAPI's current `SR_DEFAULT_PORT=9999`, but can be changed during the interactive setup. The selected port is shared by the B-side SS inbound, A-side SS outbound and B-side TCP+UDP firewall allowlist. A valid port is 1–65535; verify that it is free for both TCP and UDP on B and permitted by the provider.
+
+When the bridge is disabled, skip bridge inbound/outbound creation, bridge firewall rules and Geo Bridge routing changes. Do not activate the `direct` catch-all policy without a working SS outbound. If an already deployed bridge is being disabled, first revert/remove the Entry routing rules and SS outbound, then disable the B-side inbound and remove its source-restricted firewall rule; do not simply stop the Exit listener while the Entry profile still routes traffic into it.
+
+The setup wizard only records the local target settings and backs up `config/ports.env`; it does not provision a Remnawave inbound/outbound, change a profile, open a firewall or touch either VPS.
 
 ### Historical B port inventory
 
@@ -47,7 +52,7 @@ The following values come from the repository's historical reference baseline da
 | `127.0.0.1:15481/tcp` | Static/Selfmask backend | Local backend |
 | `127.0.0.1:18080/tcp` | ACME HTTP-01 webroot | Local backend |
 | `127.0.0.1:1443/tcp` | Reserved Xray loopback target | Was not listening in the historical snapshot |
-| `0.0.0.0:9999/tcp+udp` | Proposed Shadowsocks bridge listener | New; allow only A as source |
+| `0.0.0.0:$SS_BRIDGE_PORT/tcp+udp (default 9999; only when enabled)` | Proposed Shadowsocks bridge listener | New; allow only A as source |
 
 **Do not reuse 15443 for Shadowsocks.** It belongs to the historical MTProto backend. Do not expose Telemt's management API or metrics ports publicly.
 
@@ -57,7 +62,7 @@ Keep these connections distinct:
 
 | Flow | Destination | Firewall intent |
 |---|---|---|
-| A → B data plane | B:`9999/tcp+udp` | Allow only A's actual source address (or verified private A address) |
+| A → B data plane | B:`$SS_BRIDGE_PORT/tcp+udp` (when enabled) | Allow only A's actual source address (or verified private A address) |
 | B Panel → A Remnawave Node control plane | A:`2222/tcp` by eGamesAPI's default node port; verify the actual node record | Allow only B's source address |
 | B Panel → B local Node control plane | Local/container/host path on B | Keep internal; do not open public 2222 unless the actual container topology requires it |
 | Telegram clients → MTProto on B | Public HAProxy:`443/tcp` | Existing SNI/default-backend design; keep separate from 9999 |
@@ -85,12 +90,12 @@ The underlying implementation has a reusable path for an **already registered ex
 
 - Verify that the selected exit address is B itself and that the exact expected B Node record is connected to the Panel.
 - Read and retain its active Config Profile and inbound UUIDs.
-- Check that port 9999 is not already used by any inbound or process.
+- Check that configured `SS_BRIDGE_PORT` is not already used by any inbound or process.
 - Append the service SS inbound to the existing B profile.
 - Activate the new inbound in addition to the existing active inbounds. Do not replace the whole profile with an SS-only profile.
 - Create/reuse the bridge service squad and service user.
 - On A, add the SS outbound and routing rules to the selected Entry profile.
-- Apply B's firewall rule for 9999 only after identifying A's real source IP.
+- Apply B's firewall rule for the configured `SS_BRIDGE_PORT` only after identifying A's real source IP.
 - Do not run the upstream remote-node installer against B or install a duplicate `remnanode` container.
 
 This is a deliberate compatibility adapter, not permission to bypass the same-box check blindly. If the local B Node is missing, disconnected, or its profile cannot be read, stop and diagnose instead of switching its profile or installing another Node automatically.
@@ -139,13 +144,13 @@ MTProto is **not** another A → B service-routing mode:
 - Telemt API `127.0.0.1:9091` and metrics (if enabled, historically `127.0.0.1:9090`) are management/monitoring endpoints; keep them loopback-restricted.
 - Telemt must be able to reach Telegram's DC infrastructure. Do not limit its outbound access to a single guessed DC IP.
 
-The MTProto frontend, its HAProxy SNI routing, secrets and backend port must remain independent from the A → B SS listener on 9999.
+The MTProto frontend, its HAProxy SNI routing, secrets and backend port must remain independent from the A → B SS listener on the selected `SS_BRIDGE_PORT`.
 
 ## Security requirements
 
 - Do not commit real domains, public IPs, credentials, UUIDs, SS passwords, Telegram proxy secrets, private keys, certificates, provider tokens or live `.env` files.
 - Keep Panel hostname access restricted to the configured allowlist. Subscription hostname remains a separate public endpoint.
-- Restrict B's bridge listener to A's actual source address (or the confirmed private address). Allow both TCP and UDP because the bridge is configured for both.
+- When enabled, restrict B's bridge listener to A's actual source address (or the confirmed private address) for both TCP and UDP. When disabled, do not create the listener or its firewall rule.
 - If A and B use public addresses, confirm A's actual egress/source IPv4 before adding the UFW/provider firewall rule; do not assume it matches a DNS name if NAT is involved.
 - If a provider private network exists, prefer it only after verifying routing, MTU and firewall support on both sides.
 - Keep B's local Panel→Node control plane private. Keep A's Node control port reachable from B only.
@@ -153,14 +158,27 @@ The MTProto frontend, its HAProxy SNI routing, secrets and backend port must rem
 - Preserve HAProxy as the single public 80/443 owner; Nginx handles the static site and Panel reverse proxy behind it.
 - No OS reinstall, firewall mutation, service stop, profile replacement or live routing change is authorized by this plan alone.
 
+## Installer configuration
+
+The bridge settings live in `config/ports.env`:
+
+```bash
+SS_BRIDGE_ENABLED="0"   # 0 = disabled, 1 = enabled
+SS_BRIDGE_PORT="9999"   # TCP + UDP; default follows eGamesAPI
+```
+
+Run `./install.sh --configure-bridge` for the interactive toggle and port prompt. A full interactive `./install.sh --run` also asks before starting the stages. `--check` and non-interactive runs never prompt and use the stored settings. The wizard validates the port, writes a local timestamped backup, and makes no server-side changes.
+
+This is a configuration contract and preflight gate, not automated bridge provisioning. Remnawave API/profile mutation and firewall application remain separate, explicitly reviewed integration steps.
+
 ## Implementation phases
 
 1. **Read-only inventory:** run `checks/cascade-audit.sh A` on A and `checks/cascade-audit.sh B` on B. Confirm each server's public/source address, provider private-network availability, OS, listener ownership, Node control port, current MTProxyL/HAProxy layout and firewall. Do not paste secrets.
-2. **Port and transport contract:** verify 9999 TCP and UDP are free on B; identify A's real egress/source address (including NAT); confirm provider/UFW rules; test MTU and both transport protocols.
+2. **Port and transport contract:** when enabled, verify the configured `SS_BRIDGE_PORT` is free for TCP and UDP on B; identify A's real egress/source address (including NAT); confirm provider/UFW rules; test MTU and both transport protocols.
 3. **B deployment:** install the Panel and local Exit Node on foreign VPS B. Preserve the intended HAProxy → Nginx → Panel ownership of web ports and keep the subscription hostname separate. Pin and review upstream versions before execution.
 4. **A registration:** register the Russian Entry Node A in Panel B, keep its control-plane port reachable from B only, and confirm the Node is connected with the intended public VLESS + XHTTP inbound/profile.
 5. **Local Exit adapter:** confirm B's Exit Node already exists and is connected; configure SSH access to B for the eGamesAPI remote-exec helper; run the guarded same-box compatibility patch above. Do not use the new-node/install or profile-switch path to replace a working B Node.
-6. **Create the primary Geo Bridge:** in `Расширения ноды → Серверный роутинг (мост)`, choose B as the Exit, use the agreed port 9999 unless the audit shows a conflict, choose `direct` mode, and attach the intended public Entry profile on A. When the existing B Node has active user-facing inbounds, choose the add-inbound option so its existing active inbound UUIDs remain enabled.
+6. **Create the primary Geo Bridge:** in `Расширения ноды → Серверный роутинг (мост)`, choose B as the Exit, use the configured `SS_BRIDGE_PORT` (default 9999) unless the audit shows a conflict, choose `direct` mode, and attach the intended public Entry profile on A. When the existing B Node has active user-facing inbounds, choose the add-inbound option so its existing active inbound UUIDs remain enabled.
 7. **Validate:** test TCP and UDP, DNS, IPv4/IPv6, RU-direct vs non-RU-through-B egress, B outage behavior, Panel allowlist, public subscription access, MTProto reachability and reboot persistence. Confirm the bridge port on B is source-restricted to A.
 8. **Operations:** document rollback, bridge-secret rotation, health checks, eGamesAPI update/re-patch, MTProto config-update and recovery procedures.
 
@@ -168,7 +186,7 @@ VLESS Route and a custom Full Tunnel are not part of this implementation phase.
 
 ## Acceptance criteria
 
-- B's bridge listener on 9999 accepts traffic from A only, for TCP and UDP.
+- When enabled, B's bridge listener on the configured `SS_BRIDGE_PORT` accepts traffic from A only, for TCP and UDP; when disabled, no bridge listener or allow rule is created.
 - Russian destinations from the selected public Entry profile leave through A.
 - Non-Russian destinations from the selected public Entry profile leave through B and report B's expected egress address.
 - If B or the bridge is unavailable, the non-Russian path does not silently fall back to direct egress on A; RU-direct destinations remain local to A.

@@ -93,7 +93,7 @@ INFO
     cat <<'INFO'
 VPS B is expected to host Panel + Exit Node.
 Reference public web ingress: 80/tcp and 443/tcp (HAProxy).
-Proposed bridge listener: 9999/tcp + 9999/udp (Xray SS inbound; not deployed yet).
+Optional bridge listener: use SS_BRIDGE_ENABLED and SS_BRIDGE_PORT from config/ports.env (default disabled; port 9999/tcp+udp).
 Historical MTProto backend: 127.0.0.1:15443/tcp (verify current Telemt/HAProxy config).
 Panel -> local Node control traffic should remain internal where possible.
 INFO
