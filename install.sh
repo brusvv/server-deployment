@@ -112,7 +112,7 @@ configure_bridge(){
   warn "Port changed in local config only. Teardown the existing Geo Bridge before creating or attaching profiles with the new port; existing inbound/outbound/firewall state was not migrated."
  fi
  if [[ "$current_enabled" == "1" && "$enabled" == "0" ]]; then
-  warn "Local toggle only: remove A-side bridge routing/outbound first, then B-side SS inbound and firewall rule. This wizard changes no live services."
+  warn "Local config only: existing routes keep running until eGamesAPI Teardown. Teardown removes Entry routes/outbound, service user/squad and recorded UFW rules; then review the leftover SS inbound in B's Config Profile. This wizard does not change live services."
  fi
 }
 while (($#)); do

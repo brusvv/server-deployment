@@ -222,7 +222,7 @@ VLESS Route is intentionally deferred. Do not configure the VLESS Route bridge d
 ### Optional Shadowsocks bridge settings
 
 - The bridge is disabled by default: `SS_BRIDGE_ENABLED="0"` in `config/ports.env`.
-- Run `./install.sh --configure-bridge` to choose enabled/disabled and, when enabled, the TCP+UDP port (default `9999`). An interactive full `./install.sh --run` asks the same questions before the stages begin. Changing the port while enabled updates only local config; teardown the existing Geo Bridge before recreating it on the new port.
+- Run `./install.sh --configure-bridge` to choose enabled/disabled and, when enabled, the TCP+UDP port (default `9999`). An interactive full `./install.sh --run` asks the same questions before the stages begin. Changing the port while enabled updates only local config; the existing tunnel keeps its current settings. Run eGamesAPI Teardown before recreating it on the new port. Setting the bridge flag to `0` also does not stop an active tunnel; use Teardown first.
 - Valid port range: `1–65535`, excluding `2222` (the eGamesAPI node-control default). Preflight checks the selected TCP and UDP port only when the bridge is enabled, and stops on a collision.
 - Check-only and non-interactive runs never prompt; they use the saved settings.
 
