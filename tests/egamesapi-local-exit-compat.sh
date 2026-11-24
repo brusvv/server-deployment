@@ -22,8 +22,8 @@ python3 "$ROOT/checks/egamesapi-local-exit-compat.py" --check "$module" >/dev/nu
 cmp -s "$tmp/original.sh" "$module"
 
 printf 'APPLY\n' | python3 "$ROOT/checks/egamesapi-local-exit-compat.py" --apply "$module" >/dev/null
-grep -Fq 'sr_find_node_by_host "$host"' "$module"
-grep -Fq '[ "$SR_NODE_CONNECTED" != "true" ]' "$module"
+grep -Fq 'sr_find_node_by_host "$host"' "$module" # shellcheck disable=SC2016
+grep -Fq '[ "$SR_NODE_CONNECTED" != "true" ]' "$module" # shellcheck disable=SC2016
 grep -Fq 'Reusing the existing connected local Node.' "$module"
 bash -n "$module"
 
