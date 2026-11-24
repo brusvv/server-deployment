@@ -173,6 +173,16 @@ Once ready, the stage patches only the managed bind/server directives, Remnawave
 This project is not affiliated with eGamesAPI, Remnawave or MTProxyL.
 
 
+
+## Branch scope and bootstrap behavior
+
+The remote bootstrap command in this README tracks **`main`**. It does not select this cascade branch. To work with the cascade implementation, clone the branch explicitly:
+
+    git clone --depth 1 --branch feature/remnawave-cascade-bridge https://github.com/brusvv/server-deployment.git
+    cd server-deployment
+
+The branch's `install.sh` bootstrap still defaults to cloning `main` when run from stdin; use the explicit branch checkout above, then run local commands from that checkout. The default deployment mode remains check-only.
+
 ## Remnawave cascade branch
 
 This branch adds the planning baseline for **VPS A (Entry) → VPS B (Panel + Exit)**.
