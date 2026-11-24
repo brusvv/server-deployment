@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#090a0f">
+<meta name="description" content="Black Universe — a quiet place to play.">
+<title>Black Universe — Mini Games</title>
+<style>
+:root{color-scheme:dark;--bg:#090a0f;--panel:#11131b;--line:#292d3a;--text:#f2f3f7;--muted:#9298aa;--accent:#b7a5ff;--accent2:#8ed8d0}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% -20%,#28233e 0,transparent 44%),var(--bg);color:var(--text);font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+button{font:inherit;color:inherit;cursor:pointer}button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.shell{width:min(1040px,calc(100% - 36px));margin:auto;padding:32px 0 42px}
+header{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-bottom:48px}.brand{display:flex;align-items:center;gap:12px}.mark{width:38px;height:38px;border:1px solid #4b4566;border-radius:13px;display:grid;place-items:center;background:linear-gradient(145deg,#29243d,#11131b);box-shadow:0 0 28px #9a85ff22}.mark:before{content:"";width:13px;height:13px;border:2px solid var(--accent);border-radius:50%;box-shadow:7px -5px 0 -4px var(--accent2)}.brand-name{font-size:14px;font-weight:750;letter-spacing:.18em}.brand-sub{font-size:11px;color:var(--muted);letter-spacing:.11em}.status{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px}.dot{width:7px;height:7px;border-radius:50%;background:var(--accent2);box-shadow:0 0 12px #8ed8d0}
+.hero{margin-bottom:30px}.eyebrow{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);font-weight:700}.hero h1{font-size:clamp(38px,7vw,66px);line-height:1.02;letter-spacing:-.055em;margin:12px 0 14px;font-weight:650}.hero p{color:var(--muted);max-width:550px;margin:0;font-size:15px}
+.tabs{display:flex;gap:8px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:20px}.tab{border:1px solid transparent;background:transparent;color:var(--muted);padding:9px 15px;border-radius:10px;font-size:13px}.tab.active{background:#201d2d;border-color:#413958;color:var(--text)}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:18px;align-items:start}.card{background:linear-gradient(160deg,#151722,#10121a);border:1px solid var(--line);border-radius:18px;box-shadow:0 18px 55px #0008}.game-card{padding:20px;min-height:470px}.game-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}.game-head h2{margin:0;font-size:18px;font-weight:650}.hint{font-size:12px;color:var(--muted)}.stats{display:flex;gap:8px}.stat{background:#0b0d14;border:1px solid var(--line);border-radius:10px;padding:7px 11px;min-width:72px}.stat small{display:block;color:var(--muted);font-size:10px;letter-spacing:.08em;text-transform:uppercase}.stat strong{font-size:17px;font-variant-numeric:tabular-nums}
+.tetris-layout{display:flex;justify-content:center;gap:16px;align-items:flex-start}.board-frame{padding:8px;border:1px solid #303344;background:#090b12;border-radius:12px;line-height:0}#tetris{width:240px;height:480px;display:block;image-rendering:pixelated}.next-box{width:88px}.next-box small{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.1em}.next-box canvas{display:block;width:88px;height:88px;margin-top:8px;background:#0b0d14;border:1px solid var(--line);border-radius:10px}.actions{display:flex;gap:8px;justify-content:center;margin-top:15px;flex-wrap:wrap}.btn{background:#1a1d29;border:1px solid #343849;border-radius:10px;padding:9px 14px;font-size:12px}.btn.primary{background:#28233a;border-color:#594c79}.btn:hover{border-color:var(--accent)}.mobile-controls{display:none;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px auto 0;max-width:330px}.mobile-controls button{height:44px;background:#1a1d29;border:1px solid #343849;border-radius:11px;font-size:18px;touch-action:manipulation}
+#game2048{display:none}.game2048-top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}.score-pills{display:flex;gap:7px}.score-pill{background:#0b0d14;border:1px solid var(--line);padding:7px 11px;border-radius:9px;text-align:center;min-width:75px}.score-pill small{display:block;color:var(--muted);font-size:10px;text-transform:uppercase}.score-pill strong{font-size:16px}.grid2048{width:min(100%,390px);aspect-ratio:1;margin:0 auto;background:#292b35;border:7px solid #292b35;border-radius:13px;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,1fr);gap:7px;touch-action:none}.cell{border-radius:8px;background:#171a23;display:grid;place-items:center;font-size:clamp(19px,5vw,31px);font-weight:750;color:#f7f4ff;font-variant-numeric:tabular-nums}.v2{background:#343746}.v4{background:#4a4960}.v8{background:#7966a5}.v16{background:#9073bd}.v32{background:#b17ba9}.v64{background:#ca7892}.v128,.v256,.v512{background:#b99b69;font-size:clamp(16px,4vw,25px)}.v1024,.v2048,.high{background:#d1c28d;color:#171820;font-size:clamp(14px,3.5vw,22px)}
+.touch-pad{display:grid;grid-template-columns:repeat(3,48px);grid-template-rows:repeat(2,42px);gap:5px;justify-content:center;margin:15px auto 0}.touch-pad button{background:#1a1d29;border:1px solid #343849;border-radius:9px}.touch-pad .up{grid-column:2}.touch-pad .left{grid-column:1;grid-row:2}.touch-pad .down{grid-column:2;grid-row:2}.touch-pad .right{grid-column:3;grid-row:2}
+.side{padding:20px}.side h3{font-size:12px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin:0 0 12px}.side p,.side li{font-size:12px;color:var(--muted)}.side ul{padding-left:17px;margin:8px 0 20px}.side li{margin:6px 0}.record{display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--line);font-size:13px}.record strong{font-variant-numeric:tabular-nums}
+.overlay{position:fixed;inset:0;background:#05060bd9;display:none;place-items:center;padding:20px;z-index:5}.overlay.show{display:grid}.dialog{width:min(360px,100%);padding:25px;text-align:center;background:#151722;border:1px solid #37394b;border-radius:17px}.dialog h2{margin:0 0 6px}.dialog p{color:var(--muted);font-size:13px}
+footer{display:flex;justify-content:space-between;gap:12px;margin-top:25px;color:#686e80;font-size:11px}
+@media(max-width:760px){.shell{width:min(100% - 24px,560px);padding-top:22px}header{margin-bottom:34px}.layout{grid-template-columns:1fr}.side{display:grid;grid-template-columns:1fr 1fr;gap:16px}.side section{min-width:0}.game-card{padding:15px;min-height:0}.mobile-controls{display:grid}.hint.desktop{display:none}}
+@media(max-width:430px){.status{display:none}.stats{gap:5px}.stat{min-width:61px;padding:6px 8px}.tetris-layout{gap:10px}.next-box{width:68px}.next-box canvas{width:68px;height:68px}.game-head{align-items:flex-start}.side{grid-template-columns:1fr}.hero p{font-size:14px}}
+</style>
+</head>
+<body>
+<div class="shell">
+<header>
+ <div class="brand"><div class="mark"></div><div><div class="brand-name">BLACK UNIVERSE</div><div class="brand-sub">A QUIET PLACE TO PLAY</div></div></div>
+ <div class="status"><span class="dot"></span> ALL SYSTEMS NOMINAL</div>
+</header>
+<main>
+<section class="hero"><div class="eyebrow">Mini game collection</div><h1>Take a little<br>break.</h1><p>A small collection of timeless games. No accounts, no noise — just you and the next move.</p></section>
+<nav class="tabs" aria-label="Games"><button class="tab active" data-game="tetris">Tetris</button><button class="tab" data-game="2048">2048</button></nav>
+<div class="layout">
+<section class="card game-card">
+ <div id="gameTetris">
+  <div class="game-head"><div><h2>Tetris</h2><div class="hint">Arrange the pieces. Clear the lines.</div></div><div class="stats"><div class="stat"><small>Score</small><strong id="tScore">0</strong></div><div class="stat"><small>Lines</small><strong id="tLines">0</strong></div></div></div>
+  <div class="tetris-layout"><div class="board-frame"><canvas id="tetris" width="240" height="480" aria-label="Tetris board"></canvas></div><div class="next-box"><small>Next piece</small><canvas id="next" width="88" height="88"></canvas></div></div>
+  <div class="actions"><button class="btn primary" id="tStart">Start / Restart</button><button class="btn" id="tPause">Pause</button></div>
+  <div class="mobile-controls"><button data-t="left" aria-label="Move left">←</button><button data-t="rotate" aria-label="Rotate">↻</button><button data-t="right" aria-label="Move right">→</button><button data-t="down" aria-label="Soft drop">↓</button></div>
+ </div>
+ <div id="game2048">
+  <div class="game2048-top"><div><h2 style="margin:0">2048</h2><div class="hint">Join the tiles. Reach 2048.</div></div><div class="score-pills"><div class="score-pill"><small>Score</small><strong id="s2048">0</strong></div><div class="score-pill"><small>Best</small><strong id="b2048">0</strong></div></div></div>
+  <div class="grid2048" id="grid2048" role="application" aria-label="2048 game board"></div>
+  <div class="actions"><button class="btn primary" id="new2048">New game</button><button class="btn" id="undo2048">Undo</button></div>
+  <div class="touch-pad"><button class="up" data-2048="up">↑</button><button class="left" data-2048="left">←</button><button class="down" data-2048="down">↓</button><button class="right" data-2048="right">→</button></div>
+ </div>
+</section>
+<aside class="card side">
+ <section><h3>How to play</h3><p id="instructions">Use arrow keys to move. ↑ rotates, ↓ drops faster, Space drops the piece.</p><ul id="tips"><li>Complete a horizontal line to clear it.</li><li>Keep the stack low and plan ahead.</li></ul></section>
+ <section><h3>Your records</h3><div class="record"><span>Tetris best</span><strong id="tBest">0</strong></div><div class="record"><span>2048 best</span><strong id="sideBest">0</strong></div><p>Records are stored locally in this browser.</p></section>
+</aside>
+</div>
+</main>
+<footer><span>BLACK UNIVERSE · MINI GAMES</span><span>MADE FOR A MOMENT OF CALM</span></footer>
+</div>
+<div class="overlay" id="overlay"><div class="dialog"><h2 id="dialogTitle">Game over</h2><p id="dialogText">Nice run.</p><button class="btn primary" id="dialogButton">Play again</button></div></div>
+<script>
+const $=id=>document.getElementById(id);
+const best=(k)=>Number(localStorage.getItem(k)||0);
+const saveBest=(k,v)=>localStorage.setItem(k,String(v));
+function dialog(title,text,button,action){$('dialogTitle').textContent=title;$('dialogText').textContent=text;$('dialogButton').textContent=button;$('dialogButton').onclick=()=>{$('overlay').classList.remove('show');action()};$('overlay').classList.add('show')}
+function updateRecords(){$('tBest').textContent=best('bu-tetris-best');$('sideBest').textContent=best('bu-2048-best');$('b2048').textContent=best('bu-2048-best')}
+let activeGame='tetris';
+function switchGame(which){activeGame=which;document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.game===which));$('gameTetris').style.display=which==='tetris'?'block':'none';$('game2048').style.display=which==='2048'?'block':'none';$('instructions').textContent=which==='tetris'?'Use arrow keys to move. ↑ rotates, ↓ drops faster, Space drops the piece.':'Use arrow keys or swipe to slide all tiles. Equal numbers merge into one.';$('tips').innerHTML=which==='tetris'?'<li>Complete a horizontal line to clear it.</li><li>Keep the stack low and plan ahead.</li>':'<li>Tiles merge when they have the same value.</li><li>Undo restores your previous move.</li>';if(which==='2048')draw2048()}
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>switchGame(b.dataset.game)));
+/* Tetris */
+const canvas=$('tetris'),ctx=canvas.getContext('2d'),nc=$('next'),nctx=nc.getContext('2d');
+const COLS=10,ROWS=20,SZ=24,colors=[null,'#a99aff','#8ed8d0','#e6bd8b','#e58eaa','#8eaddf','#c7a0d9','#b4c6a5'];
+const shapes=[[[1,1,1,1]],[[2,0,0],[2,2,2]],[[0,0,3],[3,3,3]],[[4,4],[4,4]],[[0,5,5],[5,5,0]],[[0,6,0],[6,6,6]],[[7,7,0],[0,7,7]]];
+let board,piece,nextPiece,tScore=0,tLines=0,timer=null,paused=false;
+function newPiece(){let i=Math.floor(Math.random()*shapes.length);return {m:shapes[i].map(r=>r.slice()),color:i+1,x:3,y:0}}
+function collide(p){for(let y=0;y<p.m.length;y++)for(let x=0;x<p.m[y].length;x++)if(p.m[y][x]){let xx=p.x+x,yy=p.y+y;if(xx<0||xx>=COLS||yy>=ROWS||(yy>=0&&board[yy][xx]))return true}return false}
+function drawBlock(c,x,y,size=SZ){ctx.fillStyle=c;ctx.fillRect(x*size+1,y*size+1,size-2,size-2)}
+function drawTetris(){ctx.fillStyle='#090b12';ctx.fillRect(0,0,240,480);ctx.strokeStyle='#ffffff0a';for(let x=1;x<COLS;x++){ctx.beginPath();ctx.moveTo(x*SZ,0);ctx.lineTo(x*SZ,480);ctx.stroke()}for(let y=1;y<ROWS;y++){ctx.beginPath();ctx.moveTo(0,y*SZ);ctx.lineTo(240,y*SZ);ctx.stroke()}board.forEach((r,y)=>r.forEach((v,x)=>{if(v)drawBlock(colors[v],x,y)}));if(piece)piece.m.forEach((r,y)=>r.forEach((v,x)=>{if(v)drawBlock(colors[piece.color],piece.x+x,piece.y+y)}))}
+function drawNext(){nctx.fillStyle='#0b0d14';nctx.fillRect(0,0,88,88);let m=nextPiece.m,s=18,ox=(88-m[0].length*s)/2,oy=(88-m.length*s)/2;m.forEach((r,y)=>r.forEach((v,x)=>{if(v){nctx.fillStyle=colors[nextPiece.color];nctx.fillRect(ox+x*s+1,oy+y*s+1,s-2,s-2)}}))}
+function spawn(){piece=nextPiece||newPiece();piece.x=3;piece.y=0;nextPiece=newPiece();drawNext();if(collide(piece)){stopTetris();let b=Math.max(tScore,best('bu-tetris-best'));saveBest('bu-tetris-best',b);updateRecords();dialog('Stack complete','Your score: '+tScore+'. Best: '+b,'Play again',startTetris)}}
+function startTetris(){stopTetris();board=Array.from({length:ROWS},()=>Array(COLS).fill(0));tScore=0;tLines=0;paused=false;$('tScore').textContent='0';$('tLines').textContent='0';$('tPause').textContent='Pause';nextPiece=newPiece();spawn();timer=setInterval(tick,700);drawTetris()}
+function stopTetris(){if(timer)clearInterval(timer);timer=null}
+function tick(){if(paused||!piece)return;if(!collide({...piece,y:piece.y+1}))piece.y++;else lockPiece();drawTetris()}
+function lockPiece(){piece.m.forEach((r,y)=>r.forEach((v,x)=>{if(v&&piece.y+y>=0)board[piece.y+y][piece.x+x]=piece.color}));let full=board.filter(r=>r.every(Boolean)).length;board=board.filter(r=>!r.every(Boolean));while(board.length<ROWS)board.unshift(Array(COLS).fill(0));if(full){tLines+=full;tScore+=[0,100,300,500,800][full]*Math.max(1,Math.floor(tLines/10));$('tScore').textContent=tScore;$('tLines').textContent=tLines}spawn()}
+function moveT(dx,dy){if(!piece||paused)return;let p={...piece,x:piece.x+dx,y:piece.y+dy};if(!collide(p)){piece=p;if(dy)tScore+=0}else if(dy>0)lockPiece();drawTetris()}
+function rotateT(){if(!piece||paused)return;let m=piece.m;let rotated=m[0].map((_,i)=>m.map(row=>row[i]).reverse());let p={...piece,m:rotated};if(!collide(p))piece=p;drawTetris()}
+function hardDrop(){if(!piece||paused)return;while(!collide({...piece,y:piece.y+1}))piece.y++;lockPiece();drawTetris()}
+$('tStart').onclick=startTetris;$('tPause').onclick=()=>{if(!timer)return;paused=!paused;$('tPause').textContent=paused?'Resume':'Pause'};
+document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>({left:()=>moveT(-1,0),right:()=>moveT(1,0),down:()=>moveT(0,1),rotate:rotateT}[b.dataset.t])());
+/* 2048 */
+let grid,score2048=0,previous=null,won=false;
+function emptyGrid(){return Array.from({length:4},()=>Array(4).fill(0))}
+function addTile(){let cells=[];grid.forEach((r,y)=>r.forEach((v,x)=>{if(!v)cells.push([y,x])}));if(cells.length){let [y,x]=cells[Math.floor(Math.random()*cells.length)];grid[y][x]=Math.random()<.9?2:4}}
+function draw2048(){let el=$('grid2048');el.innerHTML='';grid.forEach(row=>row.forEach(v=>{let c=document.createElement('div');c.className='cell'+(v?' v'+v+(v>2048?' high':''):'');c.textContent=v||'';el.appendChild(c)}));$('s2048').textContent=score2048;$('b2048').textContent=best('bu-2048-best');updateRecords()}
+function new2048(){grid=emptyGrid();score2048=0;previous=null;won=false;addTile();addTile();draw2048()}
+function slide(line){let a=line.filter(Boolean),gained=0;for(let i=0;i<a.length-1;i++)if(a[i]===a[i+1]){a[i]*=2;gained+=a[i];a.splice(i+1,1)}while(a.length<4)a.push(0);return {line:a,gained}}
+function canMove(){if(grid.some(r=>r.includes(0)))return true;for(let y=0;y<4;y++)for(let x=0;x<4;x++)if((x<3&&grid[y][x]===grid[y][x+1])||(y<3&&grid[y][x]===grid[y+1][x]))return true;return false}
+function move2048(dir){if(!grid)return;let before=grid.map(r=>r.slice()),gained=0;for(let i=0;i<4;i++){let line=[];for(let j=0;j<4;j++)line.push(dir==='left'?grid[i][j]:dir==='right'?grid[i][3-j]:dir==='up'?grid[j][i]:grid[3-j][i]);let res=slide(line);gained+=res.gained;for(let j=0;j<4;j++){if(dir==='left')grid[i][j]=res.line[j];if(dir==='right')grid[i][3-j]=res.line[j];if(dir==='up')grid[j][i]=res.line[j];if(dir==='down')grid[3-j][i]=res.line[j]}}if(JSON.stringify(before)===JSON.stringify(grid))return;previous={grid:before,score:score2048};score2048+=gained;addTile();saveBest('bu-2048-best',Math.max(score2048,best('bu-2048-best')));draw2048();if(!won&&grid.some(r=>r.includes(2048))){won=true;dialog('2048 reached','You made it. Keep going or start a new board.','Continue',()=>{})}else if(!canMove())dialog('No more moves','Final score: '+score2048+'.','New game',new2048)}
+$('new2048').onclick=new2048;$('undo2048').onclick=()=>{if(previous){grid=previous.grid;score2048=previous.score;previous=null;draw2048()}};
+document.querySelectorAll('[data-2048]').forEach(b=>b.onclick=()=>move2048(b.dataset['2048']));
+let touchStart=null;const gEl=$('grid2048');gEl.addEventListener('touchstart',e=>{let t=e.changedTouches[0];touchStart=[t.clientX,t.clientY]},{passive:true});gEl.addEventListener('touchend',e=>{if(!touchStart)return;let t=e.changedTouches[0],dx=t.clientX-touchStart[0],dy=t.clientY-touchStart[1];touchStart=null;if(Math.max(Math.abs(dx),Math.abs(dy))<25)return;move2048(Math.abs(dx)>Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up'))},{passive:true});
+document.addEventListener('keydown',e=>{if($('overlay').classList.contains('show'))return;const arrows=['ArrowLeft','ArrowRight','ArrowDown','ArrowUp'];if(activeGame==='tetris'){if(arrows.includes(e.key)||e.key===' '||e.key==='x')e.preventDefault();if(e.key==='ArrowLeft')moveT(-1,0);else if(e.key==='ArrowRight')moveT(1,0);else if(e.key==='ArrowDown')moveT(0,1);else if(e.key==='ArrowUp'||e.key.toLowerCase()==='x')rotateT();else if(e.key===' ')hardDrop();else if(e.key.toLowerCase()==='p')$('tPause').click()}else{let m={ArrowLeft:'left',ArrowRight:'right',ArrowUp:'up',ArrowDown:'down'};if(m[e.key]){e.preventDefault();move2048(m[e.key])}}});
+startTetris();new2048();updateRecords();
+</script>
+</body>
+</html>
