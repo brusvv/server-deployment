@@ -171,3 +171,27 @@ Once ready, the stage patches only the managed bind/server directives, Remnawave
     ./tests/shellcheck.sh
 
 This project is not affiliated with eGamesAPI, Remnawave or MTProxyL.
+
+
+## Remnawave cascade branch
+
+This branch adds the planning baseline for **VPS A (Entry) → VPS B (Panel + Exit)**.
+
+- Client-facing VLESS + XHTTP terminates on A.
+- A → B uses a dedicated Shadowsocks bridge over TCP + UDP with `chacha20-ietf-poly1305`.
+- The current bridge port contract reserves `9999/tcp+udp` on B, following the eGamesAPI default. It is a planned value, not a claim that the port is currently free or listening.
+- MTProto/Telemt is a separate service on B. It has its own client listener and outbound connectivity to Telegram DCs; it does not use the Shadowsocks bridge or need a separate Remnawave Exit Node.
+
+Before any deployment, run the read-only inventory on each VPS:
+
+    sudo bash checks/cascade-audit.sh A
+    sudo bash checks/cascade-audit.sh B
+
+Run each command on the server identified by the argument. The audit does not read secrets, service environments, Docker environment variables or process command lines. Its output does include network addresses and firewall source addresses; review those before sharing.
+
+Design notes:
+
+- [Remnawave cascade bridge plan](docs/remnawave-cascade-bridge-plan.md)
+- [MTProto networking model](docs/mtproto-networking.md)
+
+The upstream eGamesAPI Server Routing wizard includes a same-box guard for an Exit host matching the Panel's public IP. This branch documents the required local-Node adapter; do not run the stock wizard unchanged for Panel + Exit on B.
