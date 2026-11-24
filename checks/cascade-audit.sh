@@ -32,7 +32,7 @@ if have ip; then
   ip -br address 2>/dev/null || true
   echo "-- routes --"
   ip route 2>/dev/null || true
-  if have ip6; then ip -6 route 2>/dev/null || true; fi
+  ip -6 route 2>/dev/null || true
 else
   echo "ip command unavailable"
 fi
