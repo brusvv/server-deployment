@@ -20,6 +20,8 @@ import tempfile
 BEGIN = "# BEGIN SERVER_DEPLOYMENT_BRIDGE_CONFIG"
 END = "# END SERVER_DEPLOYMENT_BRIDGE_CONFIG"
 PORT_LINE = "SR_DEFAULT_PORT=9999"
+ROUTE_MODE_PICK_LINE = "    sr_pick_route_mode || { echo -e \"${COLOR_YELLOW}${LANG[RE_CANCELLED]}${COLOR_RESET}\"; return 1; }"
+ROUTE_MODE_MARKER = "SERVER_DEPLOYMENT_MANAGED_GEO_DIRECT_MODE"
 SETUP_ANCHOR = "sr_setup() {"
 ATTACH_ANCHOR = "sr_attach_profile() {"
 ATTACH_STATE_PORT_BLOCK = """    if [ -z "$host" ] || [ -z "$port" ] || [ -z "$password" ]; then
@@ -29,6 +31,7 @@ ATTACH_STATE_PORT_BLOCK = """    if [ -z "$host" ] || [ -z "$port" ] || [ -z "$p
 
     ru_list=$(sr_state_get ru_profiles)"""
 ATTACH_PORT_MARKER = "SERVER_DEPLOYMENT_MANAGED_BRIDGE_ATTACH_PORT_CHECK"
+ATTACH_MODE_MARKER = "SERVER_DEPLOYMENT_MANAGED_BRIDGE_ATTACH_MODE_CHECK"
 ASKED_PORT_LINE = '    ss_port="$SR_ASKED_PORT"'
 SETUP_MARKER = "SERVER_DEPLOYMENT_MANAGED_BRIDGE_SETUP_GUARD"
 ATTACH_MARKER = "SERVER_DEPLOYMENT_MANAGED_BRIDGE_ATTACH_GUARD"
@@ -188,7 +191,9 @@ def main() -> int:
                 and original_text.count(SETUP_MARKER) == 1
                 and original_text.count(ATTACH_MARKER) == 1
                 and original_text.count(PORT_MARKER) == 1
-                and original_text.count(ATTACH_PORT_MARKER) == 1):
+                and original_text.count(ATTACH_PORT_MARKER) == 1
+                and original_text.count(ROUTE_MODE_MARKER) == 1
+                and original_text.count(ATTACH_MODE_MARKER) == 1):
             print(f"OK: managed bridge configuration adapter is already present: {target}")
             print(f"Config source: {config_file} (enabled={enabled}, port={port})")
             return 0
@@ -197,6 +202,7 @@ def main() -> int:
 
     required = {
         PORT_LINE: original_text.count(PORT_LINE),
+        ROUTE_MODE_PICK_LINE: original_text.count(ROUTE_MODE_PICK_LINE),
         SETUP_ANCHOR: original_text.count(SETUP_ANCHOR),
         ATTACH_ANCHOR: original_text.count(ATTACH_ANCHOR),
         ASKED_PORT_LINE: original_text.count(ASKED_PORT_LINE),
@@ -237,8 +243,13 @@ def main() -> int:
         1,
     )
     new_text = new_text.replace(
+        ROUTE_MODE_PICK_LINE,
+        "    # " + ROUTE_MODE_MARKER + "\n    SR_ROUTE_MODE=direct\n    echo \"Geo Bridge mode is fixed to direct: RU traffic stays on Entry VPS A; other destinations use Exit VPS B.\" >&2",
+        1,
+    )
+    new_text = new_text.replace(
         ATTACH_STATE_PORT_BLOCK,
-        ATTACH_STATE_PORT_BLOCK + "\n    # " + ATTACH_PORT_MARKER + "\n    sr_sd_require_selected_port \"$port\" || return 1",
+        ATTACH_STATE_PORT_BLOCK + "\n    # " + ATTACH_PORT_MARKER + "\n    sr_sd_require_selected_port \"$port\" || return 1" + "\n    # " + ATTACH_MODE_MARKER + "\n    if [ \"$mode\" != \"direct\" ]; then echo \"Saved Geo Bridge mode is not direct; attach blocked.\" >&2; return 1; fi",
         1,
     )
     new_text = new_text.replace(
