@@ -132,6 +132,7 @@ Use the actual checkout path if `SD_INSTALL_DIR` differs from `/opt/server-deplo
 
 - Reads only the two bridge settings from the selected `config/ports.env`; it does not source or execute that file.
 - Loads the selected port when eGamesAPI setup starts and rejects a different port at its prompt, preventing inbound/outbound/firewall port drift.
+- Bypasses eGamesAPI’s interactive Geo Bridge mode picker and pins the policy to `direct`; attaching another Entry profile is refused if its saved bridge state has any other mode.
 - Blocks `sr_setup` and `sr_attach_profile` while `SS_BRIDGE_ENABLED=0`.
 - Leaves `sr_teardown` available while disabled, so the existing bridge can be removed safely.
 - Requires the already patched same-box guard, and makes no API request or live change itself.

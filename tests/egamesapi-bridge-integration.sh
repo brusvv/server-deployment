@@ -83,6 +83,9 @@ bash -n "$module"
 grep -Fq 'SERVER_DEPLOYMENT_MANAGED_BRIDGE_SETUP_GUARD' "$module"
 grep -Fq 'SERVER_DEPLOYMENT_MANAGED_BRIDGE_ATTACH_GUARD' "$module"
 grep -Fq 'SERVER_DEPLOYMENT_MANAGED_BRIDGE_PORT_CHECK' "$module"
+grep -Fq 'SERVER_DEPLOYMENT_MANAGED_GEO_DIRECT_MODE' "$module"
+grep -Fq 'SERVER_DEPLOYMENT_MANAGED_BRIDGE_ATTACH_PORT_CHECK' "$module"
+grep -Fq 'SERVER_DEPLOYMENT_MANAGED_BRIDGE_ATTACH_MODE_CHECK' "$module"
 
 # Disabled means no new setup or profile attachment. Teardown remains callable.
 (
