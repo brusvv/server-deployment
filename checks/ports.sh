@@ -11,9 +11,9 @@ for port in "$PUBLIC_HTTP_PORT" "$PUBLIC_HTTPS_PORT"; do
  fi
 done
 
-# The bridge port is expected to be unused before the SS inbound is deployed.
-# Check TCP and UDP independently; the bridge will need both transports.
-if [[ -n "${SS_BRIDGE_PORT:-}" ]]; then
+# The optional bridge listener is checked only when explicitly enabled.
+# Check TCP and UDP independently; the bridge needs both transports.
+if [[ "${SS_BRIDGE_ENABLED:-0}" == "1" ]]; then
  if ss -H -lnt "( sport = :$SS_BRIDGE_PORT )" 2>/dev/null | grep -q .; then
   warn "TCP $SS_BRIDGE_PORT is occupied; inspect before enabling the bridge"
   ss -lntp "( sport = :$SS_BRIDGE_PORT )" || true
@@ -26,4 +26,6 @@ if [[ -n "${SS_BRIDGE_PORT:-}" ]]; then
  else
   info "UDP $SS_BRIDGE_PORT is free"
  fi
+else
+ info "Shadowsocks bridge disabled; skip bridge listener port checks."
 fi

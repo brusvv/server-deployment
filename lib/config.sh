@@ -18,6 +18,21 @@ load_config(){
  ACME_WEBROOT_HOST="${ACME_WEBROOT_HOST:-127.0.0.1}"
  ACME_WEBROOT_PORT="${ACME_WEBROOT_PORT:-18080}"
  XRAY_LISTENER_REQUIRED="${XRAY_LISTENER_REQUIRED:-0}"
+ # The cascade bridge is opt-in. Validate its saved settings even when disabled.
+ SS_BRIDGE_ENABLED="${SS_BRIDGE_ENABLED:-0}"
+ SS_BRIDGE_PORT="${SS_BRIDGE_PORT:-9999}"
+ SS_BRIDGE_BIND="${SS_BRIDGE_BIND:-0.0.0.0}"
+ SS_BRIDGE_NETWORK="${SS_BRIDGE_NETWORK:-tcp,udp}"
+ SS_BRIDGE_METHOD="${SS_BRIDGE_METHOD:-chacha20-ietf-poly1305}"
+ case "$SS_BRIDGE_ENABLED" in
+  0|1) ;;
+  *) die "SS_BRIDGE_ENABLED must be 0 (disabled) or 1 (enabled)" ;;
+ esac
+ [[ "$SS_BRIDGE_PORT" =~ ^[0-9]{1,5}$ ]] || die "SS_BRIDGE_PORT must be an integer from 1 to 65535"
+ local bridge_port_number
+ bridge_port_number=$((10#$SS_BRIDGE_PORT))
+ (( bridge_port_number >= 1 && bridge_port_number <= 65535 )) || die "SS_BRIDGE_PORT must be an integer from 1 to 65535"
+ SS_BRIDGE_PORT="$bridge_port_number"
  if (( allexport_was_enabled == 0 )); then set +a; fi
 }
 require_domains(){

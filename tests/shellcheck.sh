@@ -10,4 +10,5 @@ find . -type f -name '*.sh' -print0 | while IFS= read -r -d '' file; do bash -n 
 python3 -m py_compile lib/haproxy_config.py checks/egamesapi-local-exit-compat.py
 bash tests/port-discovery.sh
 bash tests/egamesapi-local-exit-compat.sh
+bash tests/cascade-config.sh
 echo "Static shell and HAProxy port checks passed."
