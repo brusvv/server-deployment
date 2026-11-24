@@ -11,5 +11,6 @@ python3 -m py_compile lib/haproxy_config.py checks/egamesapi-local-exit-compat.p
 bash tests/port-discovery.sh
 bash tests/egamesapi-local-exit-compat.sh
 bash tests/egamesapi-bridge-integration.sh
+bash tests/egamesapi-bridge-adapters.sh
 bash tests/cascade-config.sh
 echo "Static shell and HAProxy port checks passed."

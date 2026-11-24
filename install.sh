@@ -108,6 +108,9 @@ configure_bridge(){
   done
  fi
  persist_bridge_settings "$enabled" "$port_value"
+ if [[ "$current_enabled" == "1" && "$enabled" == "1" && "$current_port" != "$port_value" ]]; then
+  warn "Port changed in local config only. Teardown the existing Geo Bridge before creating or attaching profiles with the new port; existing inbound/outbound/firewall state was not migrated."
+ fi
  if [[ "$current_enabled" == "1" && "$enabled" == "0" ]]; then
   warn "Local toggle only: remove A-side bridge routing/outbound first, then B-side SS inbound and firewall rule. This wizard changes no live services."
  fi

@@ -35,7 +35,7 @@ The bridge is **disabled by default**. Set `SS_BRIDGE_ENABLED=1` in `config/port
 
 When the bridge is disabled, skip bridge inbound/outbound creation, bridge firewall rules and Geo Bridge routing changes. Do not activate the `direct` catch-all policy without a working SS outbound. If an already deployed bridge is being disabled, first revert/remove the Entry routing rules and SS outbound, then disable the B-side inbound and remove its source-restricted firewall rule; do not simply stop the Exit listener while the Entry profile still routes traffic into it.
 
-The setup wizard records the local target settings and backs up `config/ports.env`. The managed eGamesAPI adapter below consumes this file at runtime: it blocks new setup/attachment while disabled and forces the configured port while enabled. The actual Remnawave and firewall operations remain in eGamesAPI and require its explicit confirmation.
+The setup wizard records the local target settings and backs up `config/ports.env`. The managed eGamesAPI adapter below consumes this file at runtime: it blocks new Geo Bridge setup/attachment while disabled, forces the configured port while enabled, and pins Geo Bridge routing to `direct`. Changing the port while a bridge is active does not migrate its existing inbound/outbound/firewall state; run eGamesAPI Teardown first, then set the new port and create the bridge again. The actual Remnawave and firewall operations remain in eGamesAPI and require its explicit confirmation.
 
 ### Historical B port inventory
 
@@ -123,12 +123,12 @@ The same-box patch context was verified against the eGamesAPI Server Routing sou
 The second adapter patch connects `SS_BRIDGE_ENABLED` and `SS_BRIDGE_PORT` to eGamesAPI's own Server Routing workflow. Apply it only after the same-box compatibility patch:
 
 ```bash
-sudo python3 checks/egamesapi-bridge-integration.py --check --config-file /opt/server-deployment/config/ports.env /absolute/path/to/server_routing.sh
+sudo bash checks/egamesapi-bridge-adapters.sh --check --config-file /opt/server-deployment/config/ports.env --module /absolute/path/to/server_routing.sh
 
-sudo python3 checks/egamesapi-bridge-integration.py --apply --config-file /opt/server-deployment/config/ports.env /absolute/path/to/server_routing.sh
+sudo bash checks/egamesapi-bridge-adapters.sh --apply --config-file /opt/server-deployment/config/ports.env --module /absolute/path/to/server_routing.sh
 ```
 
-Use the actual checkout path if `SD_INSTALL_DIR` differs from `/opt/server-deployment`. This patch:
+Use the actual checkout path if `SD_INSTALL_DIR` differs from `/opt/server-deployment`. The combined runner checks both source contexts on a temporary copy, then applies the same two patchers in order after one typed `APPLY` confirmation. It creates separate timestamped backups and verifies both patches after installation. This patch:
 
 - Reads only the two bridge settings from the selected `config/ports.env`; it does not source or execute that file.
 - Loads the selected port when eGamesAPI setup starts and rejects a different port at its prompt, preventing inbound/outbound/firewall port drift.
