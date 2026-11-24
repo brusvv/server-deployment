@@ -81,6 +81,7 @@ grep -Fq 'SERVER_DEPLOYMENT_MANAGED_BRIDGE_PORT_CHECK' "$module"
 
 # Disabled means no new setup or profile attachment. Teardown remains callable.
 (
+    # shellcheck disable=SC1090
     source "$module"
     if sr_setup; then
         echo "Disabled bridge unexpectedly allowed setup" >&2
@@ -100,6 +101,7 @@ SS_BRIDGE_ENABLED="1"
 SS_BRIDGE_PORT="24443"
 EOF
 (
+    # shellcheck disable=SC1090
     source "$module"
     TEST_STATE_PORT="24443"
     sr_setup
@@ -111,12 +113,15 @@ EOF
 
 # A manual port override is rejected so inbound/outbound/firewall cannot drift.
 (
+    # shellcheck disable=SC1090
     source "$module"
+    # shellcheck disable=SC2329,SC2034
     sr_ask_port() { SR_ASKED_PORT="9999"; }
     if sr_setup; then
         echo "Mismatched setup port unexpectedly passed" >&2
         exit 1
     fi
+    # shellcheck disable=SC2034
     TEST_STATE_PORT="9999"
     if sr_attach_profile; then
         echo "Mismatched saved attach port unexpectedly passed" >&2
