@@ -46,6 +46,12 @@ if load_values >/dev/null 2>&1; then
 fi
 
 write_ports 
+if load_values >/dev/null 2>&1; then
+  echo "Reserved node-control port 2222 unexpectedly passed" >&2
+  exit 1
+fi
+
+echo "Cascade bridge config tests passed."
 SS_BRIDGE_ENABLED="0"\nSS_BRIDGE_PORT="2222"'
 if load_values >/dev/null 2>&1; then
   echo "Reserved node-control port 2222 unexpectedly passed" >&2

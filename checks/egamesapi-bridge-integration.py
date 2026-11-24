@@ -22,6 +22,13 @@ END = "# END SERVER_DEPLOYMENT_BRIDGE_CONFIG"
 PORT_LINE = "SR_DEFAULT_PORT=9999"
 SETUP_ANCHOR = "sr_setup() {"
 ATTACH_ANCHOR = "sr_attach_profile() {"
+ATTACH_STATE_PORT_BLOCK = """    if [ -z "$host" ] || [ -z "$port" ] || [ -z "$password" ]; then
+        echo -e "${COLOR_RED}${LANG[SR_ATTACH_NOT_READY]}${COLOR_RESET}"
+        return 1
+    fi
+
+    ru_list=$(sr_state_get ru_profiles)"""
+ATTACH_PORT_MARKER = "SERVER_DEPLOYMENT_MANAGED_BRIDGE_ATTACH_PORT_CHECK"
 ASKED_PORT_LINE = '    ss_port="$SR_ASKED_PORT"'
 SETUP_MARKER = "SERVER_DEPLOYMENT_MANAGED_BRIDGE_SETUP_GUARD"
 ATTACH_MARKER = "SERVER_DEPLOYMENT_MANAGED_BRIDGE_ATTACH_GUARD"
@@ -88,8 +95,8 @@ sr_sd_load_bridge_config() {{
         echo "ERROR: expected exactly one SS_BRIDGE_ENABLED and SS_BRIDGE_PORT in $file" >&2
         return 1
     fi
-    enabled="$(sed -n 's/^SS_BRIDGE_ENABLED="\\([01]\\)"$/\\1/p' "$file")"
-    port="$(sed -n 's/^SS_BRIDGE_PORT="\\([0-9][0-9]*\\)"$/\\1/p' "$file")"
+    enabled="$(sed -n 's/^SS_BRIDGE_ENABLED="\([01]\)"$/\1/p' "$file")"
+    port="$(sed -n 's/^SS_BRIDGE_PORT="\([0-9][0-9]*\)"$/\1/p' "$file")"
     case "$enabled" in
         0|1) ;;
         *) echo "ERROR: SS_BRIDGE_ENABLED must be 0 or 1" >&2; return 1 ;;
@@ -180,7 +187,8 @@ def main() -> int:
                 and expected_block in original_text
                 and original_text.count(SETUP_MARKER) == 1
                 and original_text.count(ATTACH_MARKER) == 1
-                and original_text.count(PORT_MARKER) == 1):
+                and original_text.count(PORT_MARKER) == 1
+                and original_text.count(ATTACH_PORT_MARKER) == 1):
             print(f"OK: managed bridge configuration adapter is already present: {target}")
             print(f"Config source: {config_file} (enabled={enabled}, port={port})")
             return 0
@@ -192,6 +200,7 @@ def main() -> int:
         SETUP_ANCHOR: original_text.count(SETUP_ANCHOR),
         ATTACH_ANCHOR: original_text.count(ATTACH_ANCHOR),
         ASKED_PORT_LINE: original_text.count(ASKED_PORT_LINE),
+        ATTACH_STATE_PORT_BLOCK: original_text.count(ATTACH_STATE_PORT_BLOCK),
     }
     bad = {key: count for key, count in required.items() if count != 1}
     if bad:
@@ -225,6 +234,11 @@ def main() -> int:
     new_text = new_text.replace(
         ATTACH_ANCHOR,
         ATTACH_ANCHOR + "\n    # " + ATTACH_MARKER + "\n    sr_sd_require_bridge_enabled || return 1",
+        1,
+    )
+    new_text = new_text.replace(
+        ATTACH_STATE_PORT_BLOCK,
+        ATTACH_STATE_PORT_BLOCK + "\n    # " + ATTACH_PORT_MARKER + "\n    sr_sd_require_selected_port \"$port\" || return 1",
         1,
     )
     new_text = new_text.replace(

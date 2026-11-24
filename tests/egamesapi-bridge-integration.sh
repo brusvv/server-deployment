@@ -31,7 +31,30 @@ sr_setup() {
     SR_TEST_PORT="$ss_port"
 }
 
+sr_state_get() {
+    case "$1" in
+        host) printf '%s' "exit.example" ;;
+        port) printf '%s' "$TEST_STATE_PORT" ;;
+        route_mode) printf '%s' "direct" ;;
+        ss_password) printf '%s' "test-secret" ;;
+        profile_uuid) printf '%s' "profile-uuid" ;;
+        ru_profiles) printf '%s' "profile-uuid" ;;
+        *) return 1 ;;
+    esac
+}
+
 sr_attach_profile() {
+    local host port mode password profile_uuid ru_list
+    host="$(sr_state_get host)"
+    port="$(sr_state_get port)"
+    mode="$(sr_state_get route_mode)"
+    password="$(sr_state_get ss_password)"
+    profile_uuid="$(sr_state_get profile_uuid)"
+    if [ -z "$host" ] || [ -z "$port" ] || [ -z "$password" ]; then
+        return 1
+    fi
+
+    ru_list="$(sr_state_get ru_profiles)"
     SR_TEST_ATTACH="1"
 }
 
@@ -77,6 +100,7 @@ SS_BRIDGE_PORT="24443"
 EOF
 (
     source "$module"
+    TEST_STATE_PORT="24443"
     sr_setup
     [[ "$SR_DEFAULT_PORT" == "24443" ]]
     [[ "$SR_TEST_PORT" == "24443" ]]
@@ -89,7 +113,12 @@ EOF
     source "$module"
     sr_ask_port() { SR_ASKED_PORT="9999"; }
     if sr_setup; then
-        echo "Mismatched bridge port unexpectedly passed" >&2
+        echo "Mismatched setup port unexpectedly passed" >&2
+        exit 1
+    fi
+    TEST_STATE_PORT="9999"
+    if sr_attach_profile; then
+        echo "Mismatched saved attach port unexpectedly passed" >&2
         exit 1
     fi
 )

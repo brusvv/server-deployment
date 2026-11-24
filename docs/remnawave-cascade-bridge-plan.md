@@ -120,27 +120,23 @@ The same-box patch context was verified against the eGamesAPI Server Routing sou
 
 #### Managed bridge toggle and port adapter
 
-The second adapter patch connects \`SS_BRIDGE_ENABLED\` and \`SS_BRIDGE_PORT\` to eGamesAPI's own Server Routing workflow. Apply it only after the same-box compatibility patch:
+The second adapter patch connects `SS_BRIDGE_ENABLED` and `SS_BRIDGE_PORT` to eGamesAPI's own Server Routing workflow. Apply it only after the same-box compatibility patch:
 
-\`\`\`bash
-sudo python3 checks/egamesapi-bridge-integration.py --check \\
-  --config-file /opt/server-deployment/config/ports.env \\
-  /absolute/path/to/server_routing.sh
+```bash
+sudo python3 checks/egamesapi-bridge-integration.py --check --config-file /opt/server-deployment/config/ports.env /absolute/path/to/server_routing.sh
 
-sudo python3 checks/egamesapi-bridge-integration.py --apply \\
-  --config-file /opt/server-deployment/config/ports.env \\
-  /absolute/path/to/server_routing.sh
-\`\`\`
+sudo python3 checks/egamesapi-bridge-integration.py --apply --config-file /opt/server-deployment/config/ports.env /absolute/path/to/server_routing.sh
+```
 
-Use the actual checkout path if \`SD_INSTALL_DIR\` differs from \`/opt/server-deployment\`. This patch:
+Use the actual checkout path if `SD_INSTALL_DIR` differs from `/opt/server-deployment`. This patch:
 
-- Reads only the two bridge settings from the selected \`config/ports.env\`; it does not source or execute that file.
+- Reads only the two bridge settings from the selected `config/ports.env`; it does not source or execute that file.
 - Loads the selected port when eGamesAPI setup starts and rejects a different port at its prompt, preventing inbound/outbound/firewall port drift.
-- Blocks \`sr_setup\` and \`sr_attach_profile\` while \`SS_BRIDGE_ENABLED=0\`.
-- Leaves \`sr_teardown\` available while disabled, so the existing bridge can be removed safely.
+- Blocks `sr_setup` and `sr_attach_profile` while `SS_BRIDGE_ENABLED=0`.
+- Leaves `sr_teardown` available while disabled, so the existing bridge can be removed safely.
 - Requires the already patched same-box guard, and makes no API request or live change itself.
 
-**Disable sequence:** open \`Расширения ноды → Серверный роутинг (мост)\`, select the configured Geo Bridge and run its Teardown action first. eGamesAPI removes the bridge routes/outbound from the attached Entry profiles, deletes its service user and squad, and removes the recorded UFW allow rules. Its current teardown deliberately retains the Exit Node and Config Profile; it does not automatically remove the SS inbound from that profile. Only after teardown succeeds should \`SS_BRIDGE_ENABLED\` be set to \`0\`. This avoids leaving Entry traffic pointed at a stopped Exit listener. The adapter's off switch blocks new setup/attachment; it is not a remote cleanup command.
+**Disable sequence:** open `Расширения ноды → Серверный роутинг (мост)`, select the configured Geo Bridge and run its Teardown action first. eGamesAPI removes the bridge routes/outbound from the attached Entry profiles, deletes its service user and squad, and removes the recorded UFW allow rules. Its current teardown deliberately retains the Exit Node and Config Profile; it does not automatically remove the SS inbound from that profile. Only after teardown succeeds should `SS_BRIDGE_ENABLED` be set to `0`. This avoids leaving Entry traffic pointed at a stopped Exit listener. The adapter's off switch blocks new setup/attachment; it is not a remote cleanup command.
 
 If the eGamesAPI module changes, both patchers fail closed on unknown source context. Recheck and reapply them only after reviewing the changed upstream module.
 
