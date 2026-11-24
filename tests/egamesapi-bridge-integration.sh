@@ -28,14 +28,19 @@ sr_setup() {
     fi
     sr_ask_port || return 1
     ss_port="$SR_ASKED_PORT"
+    sr_pick_route_mode || { echo -e "${COLOR_YELLOW}${LANG[RE_CANCELLED]}${COLOR_RESET}"; return 1; }
     SR_TEST_PORT="$ss_port"
 }
 
+sr_pick_route_mode() {
+    SR_ROUTE_MODE="bridge"
+    SR_TEST_ROUTE_PICK="called"
+}
 sr_state_get() {
     case "$1" in
         host) printf '%s' "exit.example" ;;
         port) printf '%s' "$TEST_STATE_PORT" ;;
-        route_mode) printf '%s' "direct" ;;
+        route_mode) printf '%s' "${TEST_STATE_ROUTE_MODE:-direct}" ;;
         ss_password) printf '%s' "test-secret" ;;
         profile_uuid) printf '%s' "profile-uuid" ;;
         ru_profiles) printf '%s' "profile-uuid" ;;
@@ -107,6 +112,8 @@ EOF
     sr_setup
     [[ "$SR_DEFAULT_PORT" == "24443" ]]
     [[ "$SR_TEST_PORT" == "24443" ]]
+    [[ "$SR_ROUTE_MODE" == "direct" ]]
+    [[ -z "${SR_TEST_ROUTE_PICK:-}" ]]
     sr_attach_profile
     [[ "$SR_TEST_ATTACH" == "1" ]]
 )
@@ -125,6 +132,14 @@ EOF
     TEST_STATE_PORT="9999"
     if sr_attach_profile; then
         echo "Mismatched saved attach port unexpectedly passed" >&2
+        exit 1
+    fi
+    # shellcheck disable=SC2034
+    TEST_STATE_PORT="24443"
+    # shellcheck disable=SC2034
+    TEST_STATE_ROUTE_MODE="bridge"
+    if sr_attach_profile; then
+        echo "Non-direct saved route mode unexpectedly passed" >&2
         exit 1
     fi
 )
