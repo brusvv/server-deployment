@@ -84,6 +84,7 @@ configure_bridge(){
  local enabled answer port_value candidate port_number prompt="[y/N]"
  [[ "$current_enabled" == "1" ]] && prompt="[Y/n]"
  printf '\nShadowsocks bridge setup (VPS A → VPS B)\n'
+ printf 'This saves the desired configuration only; it does not create or remove live bridge components.\n'
  read -r -p "Enable the bridge? $prompt " answer
  case "$answer" in
   "") enabled="$current_enabled" ;;
@@ -107,6 +108,9 @@ configure_bridge(){
   done
  fi
  persist_bridge_settings "$enabled" "$port_value"
+ if [[ "$current_enabled" == "1" && "$enabled" == "0" ]]; then
+  warn "Local toggle only: remove A-side bridge routing/outbound first, then B-side SS inbound and firewall rule. This wizard changes no live services."
+ fi
 }
 while (($#)); do
  case "$1" in

@@ -188,7 +188,7 @@ The branch's `install.sh` bootstrap still defaults to cloning `main` when run fr
 This branch implements the main route for **VPS A (Russia — Entry) → VPS B (abroad — Panel + Exit)**.
 
 - Client-facing VLESS + XHTTP terminates on A.
-- A → B uses a dedicated Shadowsocks bridge over TCP + UDP with `chacha20-ietf-poly1305`.
+- When enabled, A → B uses a dedicated Shadowsocks bridge over TCP + UDP with `chacha20-ietf-poly1305`.
 - The primary eGamesAPI Geo Bridge policy is `direct`: Russian IP/domain destinations leave directly through A; other traffic from the selected public profile is sent through the SS bridge and exits via B.
 - The optional bridge is disabled by default (`SS_BRIDGE_ENABLED=0`). Its configurable `SS_BRIDGE_PORT` defaults to `9999/tcp+udp`; the selected port is not assumed free or listening.
 - MTProto/Telemt is a separate service on B. Its Telegram traffic does not use the Shadowsocks bridge.
