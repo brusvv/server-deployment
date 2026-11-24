@@ -34,7 +34,7 @@ cmp -s "$tmp/original.sh" "$backup"
 python3 "$ROOT/checks/egamesapi-local-exit-compat.py" --check "$module" >/dev/null
 before_count="$(find "$tmp" -maxdepth 1 -name 'server_routing.sh.before-server-deployment.*' -type f | wc -l)"
 cp "$module" "$tmp/patched-before-idempotency.sh"
-printf 'APPLY\\n' | python3 "$ROOT/checks/egamesapi-local-exit-compat.py" --apply "$module" >/dev/null
+printf 'APPLY\n' | python3 "$ROOT/checks/egamesapi-local-exit-compat.py" --apply "$module" >/dev/null
 after_count="$(find "$tmp" -maxdepth 1 -name 'server_routing.sh.before-server-deployment.*' -type f | wc -l)"
 [[ "$before_count" == "$after_count" ]]
 cmp -s "$tmp/patched-before-idempotency.sh" "$module"
