@@ -98,8 +98,8 @@ sr_sd_load_bridge_config() {{
         echo "ERROR: expected exactly one SS_BRIDGE_ENABLED and SS_BRIDGE_PORT in $file" >&2
         return 1
     fi
-    enabled="$(sed -n 's/^SS_BRIDGE_ENABLED="\([01]\)"$/\1/p' "$file")"
-    port="$(sed -n 's/^SS_BRIDGE_PORT="\([0-9][0-9]*\)"$/\1/p' "$file")"
+    enabled="$(sed -n 's/^SS_BRIDGE_ENABLED="\\([01]\\)"$/\\1/p' "$file")"
+    port="$(sed -n 's/^SS_BRIDGE_PORT="\\([0-9][0-9]*\\)"$/\\1/p' "$file")"
     case "$enabled" in
         0|1) ;;
         *) echo "ERROR: SS_BRIDGE_ENABLED must be 0 or 1" >&2; return 1 ;;

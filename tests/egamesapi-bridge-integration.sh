@@ -60,7 +60,7 @@ sr_attach_profile() {
         return 1
     fi
 
-    ru_list="$(sr_state_get ru_profiles)"
+    ru_list=$(sr_state_get ru_profiles)
     SR_TEST_ATTACH="1"
 }
 
@@ -83,6 +83,9 @@ bash -n "$module"
 grep -Fq 'SERVER_DEPLOYMENT_MANAGED_BRIDGE_SETUP_GUARD' "$module"
 grep -Fq 'SERVER_DEPLOYMENT_MANAGED_BRIDGE_ATTACH_GUARD' "$module"
 grep -Fq 'SERVER_DEPLOYMENT_MANAGED_BRIDGE_PORT_CHECK' "$module"
+grep -Fq 'SERVER_DEPLOYMENT_MANAGED_GEO_DIRECT_MODE' "$module"
+grep -Fq 'SERVER_DEPLOYMENT_MANAGED_BRIDGE_ATTACH_PORT_CHECK' "$module"
+grep -Fq 'SERVER_DEPLOYMENT_MANAGED_BRIDGE_ATTACH_MODE_CHECK' "$module"
 grep -Fq 'SERVER_DEPLOYMENT_MANAGED_GEO_DIRECT_MODE' "$module"
 grep -Fq 'SERVER_DEPLOYMENT_MANAGED_BRIDGE_ATTACH_PORT_CHECK' "$module"
 grep -Fq 'SERVER_DEPLOYMENT_MANAGED_BRIDGE_ATTACH_MODE_CHECK' "$module"
