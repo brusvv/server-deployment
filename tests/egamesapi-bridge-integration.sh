@@ -51,6 +51,7 @@ sr_attach_profile() {
     password="$(sr_state_get ss_password)"
     profile_uuid="$(sr_state_get profile_uuid)"
     if [ -z "$host" ] || [ -z "$port" ] || [ -z "$password" ]; then
+        echo -e "${COLOR_RED}${LANG[SR_ATTACH_NOT_READY]}${COLOR_RESET}"
         return 1
     fi
 
