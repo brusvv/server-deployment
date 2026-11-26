@@ -40,10 +40,11 @@ create_backup() {
     die "Backup archive creation failed"
   fi
   chmod 0600 "$tmp"
-  mv -n -- "$tmp" "$archive" || {
+  if ! ln -- "$tmp" "$archive"; then
     rm -f -- "$tmp"
     die "Refusing to overwrite existing backup: $archive"
-  }
+  fi
+  rm -f -- "$tmp"
   LAST_BACKUP="$archive"
   info "Backup created: $archive"
 }
@@ -54,19 +55,24 @@ list_backups() {
 }
 
 restore_backup() {
-  local archive="${1:-}"
+  local archive="${1:-}" safe_archive
   [[ -n "$archive" && -f "$archive" && ! -L "$archive" ]] || die "Usage: $0 restore /path/to/archive.tar.gz"
   (("${#backup_roots[@]}")) || die "No configured restore paths exist on this host."
 
   local -a allowed_roots=()
   allowed_roots=("$REMNAWAVE_DIR" "${MTProxyL_DIR:-/opt/mtproxyl}" "$HAPROXY_CONFIG" "$SD_ROOT/config")
-  python3 "$SD_ROOT/lib/backup_archive.py" "$archive" "${allowed_roots[@]}" || die "Backup archive failed safety validation."
+  install -d -m 0700 "$BACKUP_DIR"
+  safe_archive="$(mktemp "$BACKUP_DIR/.restore.XXXXXX")"
+  chmod 0600 "$safe_archive"
+  cp -- "$archive" "$safe_archive"
+  trap 'rm -f -- "$safe_archive"' EXIT
 
+  python3 "$SD_ROOT/lib/backup_archive.py" "$safe_archive" "${allowed_roots[@]}" || die "Backup archive failed safety validation."
   confirm "Restore validated archive '$archive'? Current files will be overwritten." || exit 0
 
   info "Creating a pre-restore safety backup."
   create_backup "pre-restore"
-  tar --numeric-owner -xzf "$archive" -C /
+  tar --numeric-owner -xzf "$safe_archive" -C /
   info "Restore completed from: $archive"
 }
 
