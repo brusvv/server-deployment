@@ -39,7 +39,6 @@ create_backup() {
     die "Refusing to overwrite existing backup: $archive"
   fi
   rm -f -- "$tmp"
-  LAST_BACKUP="$archive"
   info "Backup created: $archive"
 }
 
