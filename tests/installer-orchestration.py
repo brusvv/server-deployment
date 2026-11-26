@@ -113,7 +113,7 @@ def main():
         "2\n1\n",
         ["preflight", "backup", "system", "remnawave", "adapter", "mtproxyl", "haproxy", "validate", "warp-masque"],
         optional="mtproxyl haproxy warp-masque",
-        output_contains=("этап mtproxyl: пропущен", "этап haproxy: пропущен", "этап warp-masque: пропущен"),
+        output_contains=("Результат этапа mtproxyl: пропущен", "Результат этапа haproxy: пропущен", "Результат этапа warp-masque: пропущен"),
     )
     assert_case(
         "cascade Entry",
