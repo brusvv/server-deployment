@@ -7,6 +7,7 @@ PROFILE_STAGES=(
   preflight
   system
   remnawave
+  adapter
   mtproxyl
   haproxy
   validate
