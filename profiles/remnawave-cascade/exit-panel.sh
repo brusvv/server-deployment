@@ -6,7 +6,7 @@ PROFILE_ID="remnawave-cascade-exit-panel"
 # shellcheck disable=SC2034
 PROFILE_TITLE="Каскад Remnawave — VPS B / Panel + Exit"
 # shellcheck disable=SC2034
-PROFILE_DESCRIPTION="Роль зарубежного сервера с Panel и локальным Exit Node. eGamesAPI устанавливается из закреплённого upstream commit; MTProxyL остаётся необязательным локальным установщиком. HAProxy адаптирует существующую конфигурацию. Живой A→B bridge автоматически не создаётся."
+PROFILE_DESCRIPTION="Роль зарубежного сервера с Panel и локальным Exit Node через закреплённый eGamesAPI installer. Upstream не рекомендует объединённый Panel + Node режим для production. MTProxyL необязателен; HAProxy требует Xray на loopback. Живой A→B bridge автоматически не создаётся."
 # shellcheck disable=SC2034
 PROFILE_STAGES=(
   preflight
