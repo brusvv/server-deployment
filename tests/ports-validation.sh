@@ -3,13 +3,14 @@ set -Eeuo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 tmp="$(mktemp -d)"
 trap 'rm -rf -- "$tmp"' EXIT
-mkdir -p "$tmp/bin"
+mkdir -p "$tmp/bin" "$tmp/no-ss-bin"
 cat > "$tmp/bin/ss" <<'SS'
 #!/usr/bin/env bash
 # Empty listener inventory for deterministic preflight tests.
 exit 0
 SS
 chmod +x "$tmp/bin/ss"
+ln -s "$(command -v date)" "$tmp/no-ss-bin/date"
 
 run_ports() {
   env PATH="$tmp/bin:$PATH" SD_ROOT="$ROOT" \
@@ -38,7 +39,7 @@ expect_failure "Non-numeric bridge port" 80 443 1 abc
 
 # Missing iproute2/ss must be an explicit preflight failure, never reported as
 # an apparently free public port.
-PATH="$tmp/empty" SD_ROOT="$ROOT" PUBLIC_HTTP_PORT=80 PUBLIC_HTTPS_PORT=443 \
+PATH="$tmp/no-ss-bin" SD_ROOT="$ROOT" PUBLIC_HTTP_PORT=80 PUBLIC_HTTPS_PORT=443 \
   /bin/bash "$ROOT/checks/ports.sh" >"$tmp/no-ss.out" 2>&1
 grep -q "port occupancy checks are skipped, not assumed free" "$tmp/no-ss.out" || {
   echo "Missing ss warning not found" >&2
