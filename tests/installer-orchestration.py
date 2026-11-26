@@ -67,6 +67,7 @@ exit 0
 
         os.write(fd, inputs.encode())
         output = bytearray()
+        status = None
         deadline = time.time() + 15
         while time.time() < deadline:
             try:
@@ -83,12 +84,22 @@ exit 0
             os.kill(pid, 9)
             raise AssertionError("installer menu timed out")
 
+        # The loop may already have reaped the child. A second waitpid()
+        # then raises ChildProcessError; if it returns (0, 0), the child is
+        # still running and we must wait for its real exit status. Never
+        # overwrite a previously captured non-zero status with the WNOHANG
+        # placeholder status 0.
         try:
-            _, status = os.waitpid(pid, os.WNOHANG)
-            if status is None:
+            waited, final_status = os.waitpid(pid, os.WNOHANG)
+            if waited == pid:
+                status = final_status
+            elif waited == 0:
                 _, status = os.waitpid(pid, 0)
         except ChildProcessError:
             pass
+
+        if status is None:
+            raise AssertionError("installer child exit status was not collected")
 
         stages = log.read_text(encoding="utf-8").splitlines() if log.exists() else []
         return bytes(output).decode(errors="replace"), stages, os.waitstatus_to_exitcode(status)
