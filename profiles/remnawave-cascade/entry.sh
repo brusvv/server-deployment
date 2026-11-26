@@ -6,6 +6,5 @@ PROFILE_DESCRIPTION="Роль российского Entry-узла. Этот п
 PROFILE_STAGES=(
   preflight
   system
-  adapter
   validate
 )
