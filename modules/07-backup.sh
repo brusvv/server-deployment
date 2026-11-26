@@ -7,9 +7,23 @@ load_config
 require_root
 LAST_BACKUP=""
 
+validate_backup_directory() {
+  local path
+  [[ "$BACKUP_DIR" == /* && "$BACKUP_DIR" != "/" ]] || die "BACKUP_DIR must be an absolute non-root path."
+  case "/$BACKUP_DIR/" in */../*) die "BACKUP_DIR contains traversal: $BACKUP_DIR";; esac
+  for path in "$REMNAWAVE_DIR" "${MTProxyL_DIR:-/opt/mtproxyl}" "$HAPROXY_CONFIG" "$SD_ROOT/config"; do
+    [[ "$path" == /* && "$path" != "/" ]] || die "Configured backup path must be an absolute non-root path: $path"
+    case "/$path/" in */../*) die "Configured backup path contains traversal: $path";; esac
+    case "$BACKUP_DIR" in
+      "$path"|"$path/"*) die "BACKUP_DIR must not be inside a path being backed up: $BACKUP_DIR" ;;
+    esac
+  done
+}
+
 create_backup() {
   local prefix="${1:-server-deployment}" stamp tmp suffix archive path relative existing covered
   local -a relative_paths=()
+  validate_backup_directory
   for path in "$REMNAWAVE_DIR" "${MTProxyL_DIR:-/opt/mtproxyl}" "$HAPROXY_CONFIG" "$SD_ROOT/config"; do
     [[ -e "$path" || -L "$path" ]] || continue
     [[ "$path" == /* && "$path" != "/" ]] || die "Backup path must be an absolute non-root path: $path"
@@ -27,15 +41,6 @@ create_backup() {
     relative_paths+=("$relative")
   done
   (("${#relative_paths[@]}")) || die "No configured paths exist to back up"
-  [[ "$BACKUP_DIR" == /* && "$BACKUP_DIR" != "/" ]] || die "BACKUP_DIR must be an absolute non-root path."
-  case "/$BACKUP_DIR/" in */../*) die "BACKUP_DIR contains traversal: $BACKUP_DIR";; esac
-  for relative in "${relative_paths[@]}"; do
-    case "$BACKUP_DIR" in
-      "/$relative"|"/$relative/"*)
-        die "BACKUP_DIR must not be inside a path being backed up: $BACKUP_DIR"
-        ;;
-    esac
-  done
   warn "This backup covers configured application/config files only; Docker volumes, database data, /etc/letsencrypt, firewall state and the full VPS disk are not included."
 
   if [[ "$SD_DRY_RUN" == "1" ]]; then
@@ -72,6 +77,7 @@ list_backups() {
 restore_backup() {
   local archive="${1:-}" safe_archive pre_restore_backup
   [[ -n "$archive" && -f "$archive" && ! -L "$archive" ]] || die "Usage: $0 restore /path/to/archive.tar.gz"
+  validate_backup_directory
   local -a allowed_roots=()
   allowed_roots=("$REMNAWAVE_DIR" "${MTProxyL_DIR:-/opt/mtproxyl}" "$HAPROXY_CONFIG" "$SD_ROOT/config")
   install -d -m 0700 "$BACKUP_DIR"
