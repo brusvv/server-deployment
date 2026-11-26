@@ -108,7 +108,11 @@ configure_bridge(){
    warn "Enter a numeric port from 1 to 65535, except 2222 (node control port)."
   done
  fi
- persist_bridge_settings "$enabled" "$port_value"
+ if [[ "$DRY_RUN" == "1" ]]; then
+  info "Dry-run: bridge settings were not written."
+ else
+  persist_bridge_settings "$enabled" "$port_value"
+ fi
  if [[ "$current_enabled" == "1" && "$enabled" == "1" && "$current_port" != "$port_value" ]]; then
   warn "Port changed in local config only. Teardown the existing Geo Bridge before creating or attaching profiles with the new port; existing inbound/outbound/firewall state was not migrated."
  fi
@@ -133,7 +137,11 @@ if [[ "$CONFIGURE_BRIDGE" == "1" ]]; then
  set -a
  load_config
  set +a
- info "Configuration saved. No VPS service, firewall or Remnawave profile was changed."
+ if [[ "$DRY_RUN" == "1" ]]; then
+  info "Dry-run complete. Bridge settings were not saved and no VPS service was changed."
+ else
+  info "Configuration saved. No VPS service, firewall or Remnawave profile was changed."
+ fi
  exit 0
 fi
 if [[ "$MODE" == "run" && "$STAGE" == "all" && -t 0 && -t 1 ]]; then
