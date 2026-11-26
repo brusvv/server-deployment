@@ -358,13 +358,17 @@ Do not commit live `.env` files, domain inventories that reveal infrastructure, 
 
 ## Backups
 
-The project backup stage supports:
+The project backup commands are available through the installer CLI and `manage.sh`:
 
-- Create: `sudo ./install.sh --run --stage backup`
-- List: `sudo env SD_ROOT=/opt/server-deployment bash /opt/server-deployment/modules/07-backup.sh list`
-- Restore: `sudo env SD_ROOT=/opt/server-deployment bash /opt/server-deployment/modules/07-backup.sh restore /var/backups/server-deployment/archive.tar.gz`
+- Create: `sudo ./install.sh backup create`
+- List: `sudo ./install.sh backup list`
+- Restore: `sudo ./install.sh backup restore /var/backups/server-deployment/archive.tar.gz`
+- Interactive management: `sudo ./manage.sh` → **Backup / restore**
+- The installation stage still creates a project-file backup before system changes: `sudo ./install.sh --run --stage backup`
 
-Use the actual checkout path if it is not `/opt/server-deployment`. Restoration requires confirmation and may overwrite existing files. The default backup directory is `/var/backups/server-deployment`. Archives are created with restrictive permissions. Review the archive contents before restoring. Maintain a separate provider snapshot or off-server backup for critical data.
+The default backup directory is `/var/backups/server-deployment`. Archives have unique names, are created without overwriting existing copies and use restrictive permissions. Restore validates paths, links, file types and permission bits, stages the archive in a root-only temporary file and creates a pre-restore backup before extraction.
+
+**Scope limitation:** this is a backup of the configured application/configuration paths (`/opt/remnawave`, the configured MTProxyL directory and HAProxy config, plus this repository's `config/` directory). It does **not** back up Docker named volumes, the Remnawave PostgreSQL/Valkey data, `/etc/letsencrypt`, the full `/etc` tree, firewall state or the VPS disk. Restore extracts files only; it does not restart containers/services or validate the resulting application state. Do not treat it as a full disaster-recovery backup. Before production use, maintain provider snapshots and independent database/volume backups, inspect the archive, and perform a restore drill on a disposable VM.
 
 ## Single-VPS testing
 
