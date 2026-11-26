@@ -38,7 +38,9 @@ The suite covers:
   - Cascade B selects the Panel + Exit sequence and reports optional skips.
   - A mandatory stage failure stops the profile immediately.
   - Declining profile confirmation returns to the menu without running stages.
-- Check-only logging contract: `--check` does not create log directories/files; run mode creates a protected log.
+- Check-only/dry-run logging contract: `--check` and dry-run do not create log directories/files; a normal run creates a protected log.
+- Bridge-settings wizard is exercised in normal and `--dry-run` modes; the test stubs Python to prove the writer uses only the base shell utilities.
+- Backup-stage dry-run reports the planned paths without creating a backup directory or archive.
 
 These tests do not execute privileged package installation or the external eGamesAPI installer.
 
@@ -97,6 +99,8 @@ Use disposable Debian/Ubuntu VMs, not production VPS A/B. Take provider snapshot
 | `sudo ./install.sh` without a TTY | Check-only preflight; no install |
 | `sudo ./install.sh --check` | Read-only preflight; no package/service/config changes and no log-file creation |
 | `sudo ./install.sh --configure-bridge` | Change only local bridge settings after confirmation; no live bridge mutation |
+| `sudo ./install.sh --dry-run --configure-bridge` | Show the bridge choices but do not write the local config or create a backup |
+| `sudo ./install.sh --run --dry-run --stage backup` | Report which paths would be backed up; do not create an archive |
 | `sudo ./install.sh --run --stage NAME` | Execute exactly one named stage with its own confirmation/safety gates |
 | `sudo ./install.sh --run` | Legacy all-stage flow with the bridge-settings prompt; not the profile menu |
 
