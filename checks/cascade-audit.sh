@@ -97,6 +97,31 @@ Optional bridge listener: use SS_BRIDGE_ENABLED and SS_BRIDGE_PORT from config/p
 Historical MTProto backend: 127.0.0.1:15443/tcp (verify current Telemt/HAProxy config).
 Panel -> local Node control traffic should remain internal where possible.
 INFO
+    section "Remnawave Nginx fingerprint (read-only)"
+    nginx_conf="/opt/remnawave/nginx.conf"
+    if [[ -f "$nginx_conf" ]]; then
+      if grep -Eq '^[[:space:]]*server_tokens[[:space:]]+off;' "$nginx_conf"; then
+        echo "PASS: server_tokens off is present in /opt/remnawave/nginx.conf"
+      else
+        echo "WARN: server_tokens off is missing from /opt/remnawave/nginx.conf"
+      fi
+    else
+      echo "WARN: /opt/remnawave/nginx.conf not found; confirm actual eGamesAPI install path"
+    fi
+    if have docker && docker container inspect remnawave-nginx >/dev/null 2>&1; then
+      docker exec remnawave-nginx nginx -t 2>&1 || echo "FAIL: remnawave-nginx config test failed"
+    else
+      echo "WARN: remnawave-nginx container is not present"
+    fi
+    cat <<'HEADERS'
+Subscription response-header review (manual, Panel B):
+- Settings -> Subscription Settings -> Custom Response Headers
+- Remove support-url if it points to https://dummy.docs.rw
+- Keep the profile-title key; change its VALUE to the intended brand
+- Inspect profile-web-page-url and all other custom headers for demo domains
+- Check subscription-page brandingSettings.supportUrl separately
+Do not put subscription UUIDs or full subscription URLs in audit output.
+HEADERS
     ;;
 esac
 
