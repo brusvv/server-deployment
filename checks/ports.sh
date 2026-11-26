@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 source "$SD_ROOT/lib/common.sh"
-command -v ss >/dev/null 2>&1 || die "The ss command (iproute2) is required for reliable port preflight checks."
+if ! command -v ss >/dev/null 2>&1; then
+ warn "ss (iproute2) is unavailable; port occupancy checks are skipped, not assumed free. The System stage installs iproute2; rerun validation afterward."
+ exit 0
+fi
 
 validate_port_value() {
  local name="$1" value="$2" number
