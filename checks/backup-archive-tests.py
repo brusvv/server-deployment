@@ -33,6 +33,11 @@ class BackupArchiveTests(unittest.TestCase):
                     info.type = tarfile.LNKTYPE
                     info.linkname = target
                     tf.addfile(info)
+                elif kind == "suid_file":
+                    payload = b"test"
+                    info.mode = 0o4755
+                    info.size = len(payload)
+                    tf.addfile(info, io.BytesIO(payload))
         return str(archive)
 
     def test_accepts_file_and_directory_inside_allowed_root(self):
@@ -81,6 +86,29 @@ class BackupArchiveTests(unittest.TestCase):
             ])
             with self.assertRaises(ArchiveValidationError):
                 validate_archive(archive, ["/opt/remnawave"])
+
+    def test_rejects_setuid_or_setgid_permissions(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            archive = self.make_archive(Path(tmp), [
+                ("opt/remnawave/unsafe-binary", "suid_file", ""),
+            ])
+            with self.assertRaises(ArchiveValidationError):
+                validate_archive(archive, ["/opt/remnawave"])
+
+    def test_rejects_existing_destination_symlink_for_regular_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            filesystem_root = root / "filesystem"
+            destination_dir = filesystem_root / "opt" / "remnawave"
+            destination_dir.mkdir(parents=True)
+            outside = root / "outside"
+            outside.write_text("must not be followed", encoding="utf-8")
+            (destination_dir / "config.yml").symlink_to(outside)
+            archive = self.make_archive(root, [
+                ("opt/remnawave/config.yml", "file", ""),
+            ])
+            with self.assertRaises(ArchiveValidationError):
+                validate_archive(archive, ["/opt/remnawave"], str(filesystem_root))
 
 
 if __name__ == "__main__":
