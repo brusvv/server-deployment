@@ -288,7 +288,7 @@ In interactive run mode:
 - Option 2 allows internal backend ports to be entered manually.
 - Option 0 exits without changes.
 
-If a backend is not ready or a requested internal bind is occupied, the stage saves a root-only pending plan and does not replace or reload the active config. Public HTTP/HTTPS ports are retained from discovery.
+If a backend is not ready, Xray is not listening on the configured loopback endpoint, or a requested internal bind is occupied, the stage saves a root-only pending plan, returns a skipped status and does not replace or reload the active config. The dispatcher reports HAProxy as skipped rather than successful. Public HTTP/HTTPS ports are retained from discovery.
 
 ### HTTP → HTTPS and ACME
 
