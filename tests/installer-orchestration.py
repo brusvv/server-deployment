@@ -94,7 +94,7 @@ exit 0
         return bytes(output).decode(errors="replace"), stages, os.waitstatus_to_exitcode(status)
 
 
-def run_bridge_wizard():
+def run_bridge_wizard(dry_run: bool = False):
     with tempfile.TemporaryDirectory(prefix="bridge-wizard-test-") as tmp:
         fixture = pathlib.Path(tmp)
         (fixture / "lib").mkdir()
@@ -114,7 +114,11 @@ def run_bridge_wizard():
         env["PATH"] = str(fixture / "bin") + os.pathsep + env["PATH"]
         pid, fd = pty.fork()
         if pid == 0:
-            os.execvpe("bash", ["bash", str(fixture / "install.sh"), "--configure-bridge"], env)
+            args = ["bash", str(fixture / "install.sh")]
+            if dry_run:
+                args.append("--dry-run")
+            args.append("--configure-bridge")
+            os.execvpe("bash", args, env)
         os.write(fd, b"y\n24443\n")
         output = bytearray()
         deadline = time.time() + 10
@@ -139,12 +143,17 @@ def run_bridge_wizard():
         except ChildProcessError:
             pass
         config = (fixture / "config" / "ports.env").read_text(encoding="utf-8")
-        assert 'SS_BRIDGE_ENABLED="1"' in config, config
-        assert 'SS_BRIDGE_PORT="24443"' in config, config
-        assert 'PUBLIC_HTTP_PORT="80"' in config, config
-        backups = list((fixture / "config").glob("ports.env.before-server-deployment.*"))
-        assert len(backups) == 1, backups
         assert os.waitstatus_to_exitcode(status) == 0, bytes(output).decode(errors="replace")
+        backups = list((fixture / "config").glob("ports.env.before-server-deployment.*"))
+        if dry_run:
+            assert 'SS_BRIDGE_ENABLED="0"' in config, config
+            assert 'SS_BRIDGE_PORT="9999"' in config, config
+            assert not backups, backups
+        else:
+            assert 'SS_BRIDGE_ENABLED="1"' in config, config
+            assert 'SS_BRIDGE_PORT="24443"' in config, config
+            assert 'PUBLIC_HTTP_PORT="80"' in config, config
+            assert len(backups) == 1, backups
 
 
 def assert_case(name, inputs, expected, *, fail="", optional="", expected_code=0, output_contains=()):
@@ -195,6 +204,7 @@ def main():
         output_contains=("Установщик закрыт",),
     )
     run_bridge_wizard()
+    run_bridge_wizard(dry_run=True)
     print("Installer menu, profile orchestration and bridge wizard tests passed.")
 
 
