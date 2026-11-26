@@ -59,7 +59,7 @@ profile_fixture = {
                       "settings": {"privateKey": "DO_NOT_PRINT_INBOUND_SECRET"}}],
         "outbounds": [{"tag": "DIRECT", "protocol": "freedom",
                        "settings": {"secret": "DO_NOT_PRINT_OUTBOUND_SECRET"}}],
-        "routing": {"rules": [{"type": "field", "outboundTag": "DIRECT"}]},
+        "routing": {"rules": [{"type": "field", "domain": ["domain:example.com"], "outboundTag": "DIRECT"}]},
     },
 }
 with patch.object(wm, "get_profile", return_value=profile_fixture) as get_profile:
@@ -70,6 +70,7 @@ with patch.object(wm, "get_profile", return_value=profile_fixture) as get_profil
     get_profile.assert_called_once()
     rendered = output.getvalue()
     assert "Fixture" in rendered and "vless-in" in rendered and "DIRECT" in rendered
+    assert "domain=domain:example.com" in rendered and "outboundTag=DIRECT" in rendered
     assert "DO_NOT_PRINT" not in rendered and "privateKey" not in rendered and "secret" not in rendered
     assert "no changes were made" in rendered
 
