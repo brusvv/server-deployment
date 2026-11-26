@@ -23,7 +23,7 @@ confirm(){ [[ "$SD_MODE" == run && "$SD_DRY_RUN" == 0 ]] || { warn "Check/dry-ru
 backup_file(){
  [[ -e "$1" ]] || return 0
  local backup
- backup="$1.before-server-deployment.$(date -u +%Y%m%dT%H%M%SZ)"
+ backup="$1.before-server-deployment.$(date -u +%Y%m%dT%H%M%SZ).${BASHPID}.${RANDOM}"
  cp -a "$1" "$backup"
  chmod go-rwx "$backup" 2>/dev/null || true
  info "Backup created: $backup"
