@@ -23,7 +23,8 @@ if [[ ! -f "$config" || -L "$config" || ! -s "$config" || ! -x "$binary" || ! -f
   warn "MTProxyL active HAProxy config, binary or settings not found; integration check skipped."
   exit 0
  fi
- die "Required MTProxyL config, HAProxy binary or settings file is missing."
+ warn "MTProxyL/HAProxy prerequisites are absent; optional HAProxy integration skipped."
+ exit 10
 fi
 
 grep -Eq "^[[:space:]]*FRONT_SERVER=['\"]haproxy['\"]" "$settings" ||
@@ -119,7 +120,7 @@ fi
 
 choice="$(prompt_menu)"
 case "$choice" in
- 0) info "HAProxy setup cancelled; no changes made."; exit 0;;
+ 0) info "HAProxy setup cancelled; no changes made."; exit 10;;
  1)
   for key in "${!DISCOVERED[@]}"; do printf -v "$key" '%s' "${DISCOVERED[$key]}"; done
   info "Using the layout discovered in the active HAProxy config."
