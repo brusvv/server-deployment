@@ -42,7 +42,7 @@ while (($#)); do
   esac
   shift
 done
-printf '%s\\\n' "$stage" >> "$TEST_STAGE_LOG"
+printf '%s\\n' "$stage" >> "$TEST_STAGE_LOG"
 if [[ "$stage" == "$TEST_FAIL_STAGE" && -n "$TEST_FAIL_STAGE" ]]; then exit 42; fi
 case " $TEST_OPTIONAL_STAGES " in
   *" $stage "*) exit 10 ;;
