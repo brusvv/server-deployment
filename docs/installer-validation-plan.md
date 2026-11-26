@@ -57,7 +57,7 @@ Use disposable Debian/Ubuntu VMs, not production VPS A/B. Take provider snapshot
 4. Confirm the backup stage archives existing configured paths and local config before system preparation.
 5. Confirm the system stage asks before installing packages and creates protected state/log/backup directories.
 6. Confirm eGamesAPI consent is required; test refusal and verify the profile stops.
-7. On an approved disposable VM, run eGamesAPI choice **1 → 1**. Verify the Panel, local Node and `remnawave-nginx` containers.
+7. On an approved disposable VM, run eGamesAPI choice **1 → 1**. Verify `remnawave`, `remnawave-db`, `remnawave-redis`, `remnawave-nginx`, `remnawave-subscription-page` and `remnanode` are running; require healthy status for Panel, DB and Redis. Capture each image ref, image ID and repository digest.
 8. Verify the generated `/opt/remnawave/nginx.conf` is backed up, has top-level `server_tokens off;`, passes `nginx -t`, and reloads only `remnawave-nginx`.
 9. Verify the public HTTP `Server` header no longer exposes the Nginx version. Separately verify the Panel subscription response headers and subscription-page branding.
 10. Re-run the Nginx hardening helper and confirm it makes no second backup/reload when already compliant.
