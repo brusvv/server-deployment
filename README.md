@@ -159,9 +159,6 @@ The full interactive run asks whether to enable the Shadowsocks bridge and saves
 # Read-only checks (default)
 sudo ./install.sh --check
 
-# Preview execution without applying changes
-sudo ./install.sh --run --dry-run
-
 # Run the full interactive stage sequence
 sudo ./install.sh --run
 
@@ -347,10 +344,10 @@ Do not commit live `.env` files, domain inventories that reveal infrastructure, 
 The project backup stage supports:
 
 - Create: `sudo ./install.sh --run --stage backup`
-- List: run the backup module with `list`.
-- Restore: run the backup module with `restore /path/to/archive.tar.gz`; restoration requires confirmation and may overwrite existing files.
+- List: `sudo env SD_ROOT=/opt/server-deployment bash /opt/server-deployment/modules/07-backup.sh list`
+- Restore: `sudo env SD_ROOT=/opt/server-deployment bash /opt/server-deployment/modules/07-backup.sh restore /var/backups/server-deployment/archive.tar.gz`
 
-The default backup directory is `/var/backups/server-deployment`. Archives are created with restrictive permissions. Review the archive contents before restoring. Maintain a separate provider snapshot or off-server backup for critical data.
+Use the actual checkout path if it is not `/opt/server-deployment`. Restoration requires confirmation and may overwrite existing files. The default backup directory is `/var/backups/server-deployment`. Archives are created with restrictive permissions. Review the archive contents before restoring. Maintain a separate provider snapshot or off-server backup for critical data.
 
 ## Single-VPS testing
 
