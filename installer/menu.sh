@@ -33,7 +33,7 @@ installer_menu_select_profile() {
         return 0
         ;;
       2)
-        export INSTALL_PROFILE_FILE="$SD_ROOT/profiles/single-server/profile.sh"
+        export INSTALL_PROFILE_FILE="$SD_ROOT/profiles/remnawave-extended/profile.sh"
         return 0
         ;;
       3)
