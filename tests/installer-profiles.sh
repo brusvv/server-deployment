@@ -2,8 +2,17 @@
 set -Eeuo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
+source "$ROOT/profiles/remnawave-standard/profile.sh"
+[[ "$PROFILE_ID" == "remnawave-standard" ]]
+[[ "${PROFILE_STAGES[*]}" == "preflight backup system remnawave validate" ]]
+# The standard profile must stay free of optional components and adapters.
+[[ ! " ${PROFILE_STAGES[*]} " =~ " mtproxyl " ]]
+[[ ! " ${PROFILE_STAGES[*]} " =~ " haproxy " ]]
+[[ ! " ${PROFILE_STAGES[*]} " =~ " warp-masque " ]]
+[[ ! " ${PROFILE_STAGES[*]} " =~ " adapter " ]]
+
 source "$ROOT/profiles/single-server/profile.sh"
-[[ "$PROFILE_ID" == "single-server" ]]
+[[ "$PROFILE_ID" == "remnawave-extended" ]]
 [[ "${PROFILE_STAGES[*]}" == "preflight backup system remnawave adapter mtproxyl haproxy validate warp-masque" ]]
 
 source "$ROOT/profiles/remnawave-cascade/entry.sh"
