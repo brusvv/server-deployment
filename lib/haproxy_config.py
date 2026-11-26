@@ -70,8 +70,12 @@ def replace_server(lines: list[str], section, name: str, server_name: str, host:
     lines[i] = f"{match.group(1)}{formatted_host}:{port}{match.group(4)}{newline}"
 
 
-def parse_domain_list(raw: str, label: str, allow_empty: bool = False) -> list[str]:
+def parse_domain_list(raw: str, label: str, allow_empty: bool = False, allow_all: bool = False) -> list[str]:
     domains = [item for item in re.split(r"[\s,]+", raw.strip()) if item]
+    if allow_all and len(domains) == 1 and domains[0].lower() == "all":
+        return ["all"]
+    if allow_all and any(item.lower() == "all" for item in domains):
+        raise ValueError("'all' must be used alone in HTTP redirect settings")
     domain_re = re.compile(r"^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$")
     seen = set()
     for domain in domains:
@@ -142,6 +146,7 @@ def patch_http_frontend(lines: list[str], redirect_domains: list[str], acme_host
     if not redirect_domains:
         return
 
+    redirect_all = redirect_domains == ["all"]
     section = parse_sections(lines)
     start, end = section("frontend", "mtproxyl_http")
     block = lines[start:end]
@@ -174,13 +179,17 @@ def patch_http_frontend(lines: list[str], redirect_domains: list[str], acme_host
 
     default_index = next(i for i, line in enumerate(kept) if re.match(r"^\s*default_backend\s+\S+", line))
     nl = newline_for(block)
-    rules = [
-        f"    acl acme path_beg /.well-known/acme-challenge/{nl}",
-        f"    acl sd_http_redirect_hosts hdr(host),field(1,:) -i {' '.join(redirect_domains)}{nl}",
-        f"    http-request deny deny_status 404 unless sd_http_redirect_hosts{nl}",
-        f"    http-request redirect scheme https code 301 if sd_http_redirect_hosts !acme{nl}",
-        f"    use_backend mtproxyl_acme if acme{nl}",
-    ]
+    rules = [f"    acl acme path_beg /.well-known/acme-challenge/{nl}"]
+    if redirect_all:
+        # Catch every HTTP Host handled by this frontend; keep ACME HTTP-01 reachable.
+        rules.append(f"    http-request redirect scheme https code 301 if !acme{nl}")
+    else:
+        rules.extend([
+            f"    acl sd_http_redirect_hosts hdr(host),field(1,:) -i {' '.join(redirect_domains)}{nl}",
+            f"    http-request deny deny_status 404 unless sd_http_redirect_hosts{nl}",
+            f"    http-request redirect scheme https code 301 if sd_http_redirect_hosts !acme{nl}",
+        ])
+    rules.append(f"    use_backend mtproxyl_acme if acme{nl}")
     block = kept[:default_index] + rules + kept[default_index:]
     lines[start:end] = block
 
@@ -211,7 +220,7 @@ def patch(args):
     lines = text.splitlines(keepends=True)
 
     domains = parse_domain_list(args.domains, "Remnawave SNI")
-    redirect_domains = parse_domain_list(args.redirect_domains, "HTTP redirect", allow_empty=True)
+    redirect_domains = parse_domain_list(args.redirect_domains, "HTTP redirect", allow_empty=True, allow_all=True)
     if args.web_domain.lower() in {domain.lower() for domain in domains}:
         raise ValueError("WEB_DOMAIN must not also appear in REMNAWAVE_SNI_DOMAINS")
 

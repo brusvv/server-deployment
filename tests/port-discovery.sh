@@ -63,6 +63,24 @@ grep -Fq 'acl sd_http_redirect_hosts hdr(host),field(1,:) -i api.example.com cdn
 grep -Fq 'http-request deny deny_status 404 unless sd_http_redirect_hosts' "$tmp"
 grep -Fq 'http-request redirect scheme https code 301 if sd_http_redirect_hosts !acme' "$tmp"
 grep -Fq 'use_backend mtproxyl_acme if acme' "$tmp"
+
+# The special value "all" redirects every HTTP request except ACME challenges.
+tmp_all="$(mktemp)"
+python3 "$ROOT/lib/haproxy_config.py" "$ROOT/tests/fixtures/haproxy.cfg" "$tmp_all" \
+  --domains "gateway.example.com sync.example.com" --web-domain "cdn.example.com" \
+  --redirect-domains "all" \
+  --acme-host 127.0.0.1 --acme-port 18080 \
+  --http-port 80 --https-port 443 --xray-host 127.0.0.1 --xray-port 1443 \
+  --mtproto-host 127.0.0.1 --mtproto-port 15443 \
+  --web-tls-host 127.0.0.1 --web-tls-port 15444 \
+  --web-http-host 127.0.0.1 --web-http-port 15080 \
+  --static-host 127.0.0.1 --static-port 15481 \
+  --selfsteal-backend-host 127.0.0.1 --selfsteal-backend-port 15482 --selfsteal-port 8444
+grep -Fq 'http-request redirect scheme https code 301 if !acme' "$tmp_all"
+grep -Fq 'use_backend mtproxyl_acme if acme' "$tmp_all"
+! grep -Fq 'sd_http_redirect_hosts' "$tmp_all"
+! grep -Fq 'http-request deny deny_status 404 unless' "$tmp_all"
+rm -f "$tmp_all"
 grep -Fq 'backend mtproxyl_acme' "$tmp"
 grep -Fq 'server acme 127.0.0.1:18080' "$tmp"
 grep -Fq 'default_backend mtproxyl_web_backend' "$tmp"

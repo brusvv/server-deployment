@@ -443,9 +443,18 @@ def menu(cfg):
 def initial(cfg):
     if not sys.stdin.isatty():
         print("Non-interactive run: WARP MASQUE remains disabled by default."); return 10
-    if input("Configure optional Cloudflare WARP via Xray MASQUE now? [y/N] ").strip().lower() not in ("y","yes"):
-        print("Skipped; configure later with ./manage.sh."); return 10
-    enable_flow(cfg)
+    while True:
+        try:
+            answer = input("Configure optional Cloudflare WARP via Xray MASQUE now? [y/N] ").strip().casefold()
+        except (UnicodeDecodeError, EOFError):
+            print("Could not decode terminal input; WARP/MASQUE was safely skipped. Configure later with ./manage.sh.")
+            return 10
+        if answer in ("", "n", "no", "т", "нет"):
+            print("Skipped; configure later with ./manage.sh."); return 10
+        if answer in ("y", "yes", "д", "да"):
+            enable_flow(cfg)
+            return 0
+        print("Please answer y/yes or n/no (also accepts Russian layout: д/т).")
 
 def main():
     cfg=load_settings(); command=sys.argv[1] if len(sys.argv)>1 else "menu"

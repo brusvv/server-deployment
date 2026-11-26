@@ -127,7 +127,7 @@ Set real hostnames you control:
 
 - `REMNAWAVE_SNI_DOMAINS`: space-separated SNI hostnames routed to Xray.
 - `WEB_DOMAIN`: the separate WEB hostname.
-- `HTTP_REDIRECT_DOMAINS`: optional explicit allowlist for HTTP → HTTPS redirects. Leave empty to preserve the default strict behavior.
+- `HTTP_REDIRECT_DOMAINS`: optional HTTP → HTTPS policy. Leave empty for strict behavior, list hostnames for an allowlist, or set exactly `all` to redirect every HTTP request handled by HAProxy.
 
 The example hostnames are placeholders and will fail preflight. If `config/domains.env` already exists, preserve it; do not overwrite it with the example file.
 
@@ -304,6 +304,7 @@ Redirects are opt-in through `HTTP_REDIRECT_DOMAINS` in `config/domains.env`:
 
 - Only explicitly listed Host values receive same-host HTTP → HTTPS redirects.
 - Unknown Host values receive 404.
+- Set `HTTP_REDIRECT_DOMAINS="all"` to redirect every HTTP request handled by the HAProxy HTTP frontend, regardless of its Host value.
 - ACME HTTP-01 requests under `/.well-known/acme-challenge/` bypass redirects and are sent to the configured webroot backend.
 - The default webroot endpoint is `127.0.0.1:18080` (`ACME_WEBROOT_HOST` / `ACME_WEBROOT_PORT`).
 - The webroot service must already be listening when redirects are enabled.
