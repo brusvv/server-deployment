@@ -232,3 +232,40 @@ Interpretation:
 - The duplicate domain-resolution lines arise because preflight/validation invoke domain checks through more than one path; consider de-duplicating output when improving diagnostics.
 
 Next: inspect MTProxyL paths, unit files and processes read-only; do not install HAProxy or change Xray's 443 listener yet.
+
+## Final MTProxyL / HAProxy host inspection — 2026-11-27
+
+The operator completed the follow-up read-only inspection on the disposable Ubuntu VM.
+
+### Docker containers
+
+The complete `docker ps -a` output contained only the Remnawave stack:
+
+- `remnanode` — `remnawave/node:latest`, running.
+- `remnawave-subscription-page` — healthy; published on loopback port 3010.
+- `remnawave` — backend image; healthy; published on loopback ports 3000–3001.
+- `remnawave-db` — PostgreSQL; healthy; published on loopback port 6767.
+- `remnawave-redis` — Valkey; running.
+- `remnawave-nginx` — Nginx; running.
+
+No MTProxyL, HAProxy, Telemt or EdgeGuard container appeared in this listing.
+
+### Binary and filesystem inspection
+
+- `command -v haproxy` returned no path.
+- `whereis haproxy` returned only the command label, with no binary or directory.
+- The bounded search under `/opt` and `/usr/local` found only this repository's HAProxy-related source/test files (`lib/haproxy_config.py`, its Python cache, `tests/mtproxyl-installer-guard.sh`, `tests/fixtures/haproxy.cfg`, `modules/04-mtproxyl.sh`, and `modules/05-haproxy.sh`). It did not find an installed HAProxy binary or MTProxyL installation directory.
+- Together with the prior empty systemd-unit and process searches and the missing configured MTProxyL directories, this establishes that the expected MTProxyL-managed HAProxy integration is not installed/running in the inspected locations on this VM.
+
+This is a bounded host inspection, not proof that no similarly named file exists anywhere on the filesystem.
+
+### Updated conclusion and installer implications
+
+1. The VM currently runs the Remnawave Docker stack only; no MTProxyL/HAProxy component was found in the inspected Docker, systemd, process, binary or configured-directory locations.
+2. The current architecture cannot proceed through the existing MTProxyL-coupled HAProxy stage without first installing and configuring MTProxyL, or implementing a distinct standalone HAProxy deployment path.
+3. Do not install the stock Ubuntu HAProxy package as a drop-in substitute: the current stage expects MTProxyL-specific config, binary and service paths.
+4. Do not move Xray off public TCP/443 until a replacement frontend has been installed, configured, validated and is ready to bind that port.
+5. The service validator should be updated to recognize Docker-managed Remnawave Node containers (or distinguish a Docker service hint from a systemd unit). The current `checks/services.sh` only queries systemd unit files, so its `remnanode not found` warning is misleading for this deployment.
+6. For the current one-Node/no-cascade test, decide explicitly whether MTProxyL is a required dependency or whether standalone HAProxy is a supported architecture. Keep the two modes separate rather than silently treating the existing MTProxyL adapter as a generic HAProxy installer.
+
+No packages were installed, containers changed, services restarted, ports moved, or Remnawave profiles modified during these inspections.
