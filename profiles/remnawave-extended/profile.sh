@@ -6,7 +6,7 @@ PROFILE_ID="remnawave-extended"
 # shellcheck disable=SC2034
 PROFILE_TITLE="Remnawave + дополнительные компоненты"
 # shellcheck disable=SC2034
-PROFILE_DESCRIPTION="Расширенное развёртывание на одной VPS: Remnawave Panel + Node, сетевой адаптер, MTProxyL, HAProxy и опциональный WARP/MASQUE. HAProxy адаптирует уже установленную конфигурацию MTProxyL, а не устанавливается самостоятельно."
+PROFILE_DESCRIPTION="Расширенное развёртывание через eGamesAPI: Panel + локальная Node, сетевой адаптер, MTProxyL, HAProxy и опциональный WARP/MASQUE. Upstream не рекомендует объединённый Panel + Node режим для production. HAProxy адаптирует существующую конфигурацию MTProxyL и требует Xray на loopback."
 # shellcheck disable=SC2034
 PROFILE_STAGES=(
   preflight
