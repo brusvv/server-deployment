@@ -442,15 +442,15 @@ def menu(cfg):
 
 def initial(cfg):
     if not sys.stdin.isatty():
-        print("Non-interactive run: WARP MASQUE remains disabled by default."); return
+        print("Non-interactive run: WARP MASQUE remains disabled by default."); return 10
     if input("Configure optional Cloudflare WARP via Xray MASQUE now? [y/N] ").strip().lower() not in ("y","yes"):
-        print("Skipped; configure later with ./manage.sh."); return
+        print("Skipped; configure later with ./manage.sh."); return 10
     enable_flow(cfg)
 
 def main():
     cfg=load_settings(); command=sys.argv[1] if len(sys.argv)>1 else "menu"
     if command=="menu": menu(cfg)
-    elif command=="initial": initial(cfg)
+    elif command=="initial": sys.exit(initial(cfg) or 0)
     elif command=="status":
         p=paths(cfg); print(f"Registration: {'present' if read_json(p['creds'],{}) else 'not registered'}")
         print(f"Managed profiles: {len(read_json(p['managed'],{}))}")
