@@ -40,4 +40,11 @@ with patch.object(wm.sys, "stdin", tty), patch("builtins.input", side_effect=["m
 try: wm.validate_domains("https://example.com/path")
 except wm.WarpError: pass
 else: raise AssertionError("invalid domain accepted")
+
+# Confirming the optional setup invokes the flow only after an explicit yes.
+# enable_flow is mocked so this test cannot register a device or modify a Panel profile.
+with patch.object(wm.sys, "stdin", tty), patch("builtins.input", return_value="y"), patch.object(wm, "enable_flow") as enable:
+    assert wm.initial(cfg) == 0
+    enable.assert_called_once_with(cfg)
+
 print("WARP MASQUE unit tests passed.")
