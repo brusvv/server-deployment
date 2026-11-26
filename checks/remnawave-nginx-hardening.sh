@@ -30,7 +30,7 @@ docker ps --format '{{.Names}}' | grep -Fxq "$CONTAINER" || die "Nginx container
 
 # Determine whether the directive is already set at the snippet's top level.
 # Nested server-level overrides are not a substitute for the global http-context setting.
-read -r top_level_count invalid_count < <(python3 - "$CONFIG_FILE" <<'PY'
+read -r top_level invalid < <(python3 - "$CONFIG_FILE" <<'PY'
 import re
 import sys
 from pathlib import Path
