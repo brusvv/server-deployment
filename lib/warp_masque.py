@@ -274,8 +274,8 @@ def update_profile(panel,uuid,creds,cfg,mode,domains=None):
         raise WarpError("Other routing rules reference the WARP tag; resolve them manually")
     nodes=profile.get("nodes") or []
     if len(nodes)>1:
-        print("WARNING: profile is attached to multiple nodes: "+", ".join(n.get("name","?") for n in nodes))
-        if input("Apply to every attached node? Type APPLY: ").strip()!="APPLY": raise WarpError("Cancelled")
+        names=", ".join(n.get("name","?") for n in nodes)
+        raise WarpError("This profile is attached to multiple nodes ("+names+"). This manager verifies only the local Node; use a single-node profile or verify every attached Node separately.")
     patch_profile(panel,profile,config,cfg)
     managed[uuid]={"profileName":profile.get("name",""),"outbound":outbound,"rule":rule,
                    "transport":cfg["WARP_MASQUE_TRANSPORT"],"routeMode":mode,"domains":domains or []}
@@ -343,15 +343,38 @@ def probe(cfg):
     if not creds: raise WarpError("No WARP registration")
     host,port=creds["endpoint"],int(cfg["WARP_MASQUE_ENDPOINT_PORT"])
     if cfg["WARP_MASQUE_TRANSPORT"]=="h3":
-        with socket.socket(socket.AF_INET,socket.SOCK_DGRAM) as sock: sock.settimeout(3); sock.sendto(b"", (host,port))
-        print("UDP datagram sent; this is not a QUIC/MASQUE handshake test.")
-        return
+        infos=socket.getaddrinfo(host,port,type=socket.SOCK_DGRAM)
+        last_error=None
+        for family,socktype,proto,_,sockaddr in infos:
+            try:
+                with socket.socket(family,socktype,proto) as sock:
+                    sock.settimeout(3)
+                    sock.sendto(b"",sockaddr)
+                print("UDP datagram sent; this is only a reachability hint, not a QUIC/MASQUE handshake test.")
+                return
+            except OSError as exc:
+                last_error=exc
+        raise WarpError(f"UDP endpoint probe failed: {last_error}")
     context=ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT); context.check_hostname=False
     context.verify_mode=ssl.CERT_NONE; context.set_alpn_protocols(["h2"])
     with socket.create_connection((host,port),timeout=7) as raw:
         with context.wrap_socket(raw,server_hostname=cfg["WARP_MASQUE_SERVER_NAME"]) as tls:
             if tls.selected_alpn_protocol()!="h2": raise WarpError("Endpoint did not negotiate h2")
-    print("TLS + ALPN h2 probe succeeded; WARP egress is not yet verified.")
+            cert_pem=ssl.DER_cert_to_PEM_cert(tls.getpeercert(binary_form=True))
+    openssl=shutil.which("openssl")
+    if not openssl: raise WarpError("OpenSSL is required to verify the MASQUE endpoint certificate pin")
+    with tempfile.TemporaryDirectory(prefix="warp-masque-probe-") as temp:
+        cert_file=Path(temp)/"peer.pem"; cert_file.write_text(cert_pem)
+        peer_pem=subprocess.check_output([openssl,"x509","-in",str(cert_file),"-pubkey","-noout"])
+        peer_der=subprocess.check_output([openssl,"pkey","-pubin","-outform","DER"],input=peer_pem)
+    expected=creds["publicKey"]
+    if "BEGIN PUBLIC KEY" in expected:
+        encoded="".join(line for line in expected.splitlines() if not line.startswith("-----"))
+        expected_der=base64.b64decode(encoded)
+    else:
+        expected_der=base64.b64decode(expected)
+    if peer_der!=expected_der: raise WarpError("MASQUE endpoint public-key pin does not match the registered device")
+    print("TLS + ALPN h2 and MASQUE endpoint public-key pin verified; WARP egress is not yet verified.")
 
 def menu(cfg):
     while True:
