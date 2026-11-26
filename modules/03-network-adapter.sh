@@ -13,7 +13,6 @@ fi
 
 printf 'Target Xray inbound: %s:%s\n' "$XRAY_LOOPBACK_HOST" "$XRAY_LOOPBACK_PORT"
 printf 'Expected fallback socket: %s\n' "$NGINX_SOCKET"
-printf 'Required Xray bind before HAProxy: %s:%s\n' "$XRAY_LOOPBACK_HOST" "$XRAY_LOOPBACK_PORT"
 if [[ -S "$NGINX_SOCKET" ]]; then
  info "Fallback socket exists"
 else
