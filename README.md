@@ -142,12 +142,13 @@ Check-only is the default. It does not install packages, run external installers
 
 When started with no arguments in an interactive terminal, `./install.sh` opens the installation menu:
 
-1. **One server** — runs the single-host profile.
-2. **Remnawave cascade** — asks whether this machine is VPS A (Entry) or VPS B (Panel + Exit).
+1. **Обычная установка Remnawave** — Panel + local Node only; no MTProxyL, HAProxy, network adapter or WARP/MASQUE stages.
+2. **Remnawave + дополнительные компоненты** — the extended single-host profile with the network adapter, MTProxyL, HAProxy integration and optional WARP/MASQUE.
+3. **Каскад Remnawave** — asks whether this machine is VPS A (Entry) or VPS B (Panel + Exit).
 
 The selected profile and its stage list are shown before confirmation. **Yes** starts it, **No** returns to the main menu, and **Exit** closes the installer. No system changes are made before the confirmation. Non-interactive no-argument execution remains check-only; explicit CLI commands continue to work as before.
 
-The role profiles intentionally reflect current implementation boundaries. VPS A currently performs preflight, a local backup and base-package preparation only; it does not install/register the Remnawave Node or create its VLESS inbound. VPS B owns the Panel/Exit and MTProxyL/HAProxy path. Neither cascade profile automatically creates the live Shadowsocks inbound/outbound, service user/squad, routing rules or firewall allowlist.
+The profiles intentionally reflect current implementation boundaries. The standard Remnawave profile runs preflight, backup, base-package preparation, the reviewed eGamesAPI/Remnawave hand-off and validation only. The extended profile adds the network adapter, MTProxyL, HAProxy integration and optional WARP/MASQUE. VPS A currently performs preflight, a local backup and base-package preparation only; it does not install/register the Remnawave Node or create its VLESS inbound. VPS B owns the Panel/Exit and MTProxyL/HAProxy path. Neither cascade profile automatically creates the live Shadowsocks inbound/outbound, service user/squad, routing rules or firewall allowlist.
 
 The repository stages are deliberately separated:
 
