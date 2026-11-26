@@ -38,7 +38,8 @@ The suite covers:
   - Cascade B selects the Panel + Exit sequence and reports optional skips.
   - A mandatory stage failure stops the profile immediately.
   - Declining profile confirmation returns to the menu without running stages.
-- Check-only/dry-run logging contract: `--check` and dry-run do not create log directories/files; consecutive stage invocations create separate protected logs even within one second; child-module stdout/stderr and failing exit codes are captured in the stage log.\n- Run-log privacy: eGamesAPI and MTProxyL interactive installer output (which may contain generated credentials) goes directly to the controlling TTY and is excluded from persistent logs.
+- Check-only/dry-run logging contract: `--check` and dry-run do not create log directories/files; consecutive stage invocations create separate protected logs even within one second; child-module stdout/stderr and failing exit codes are captured in the stage log.
+- Run-log privacy: eGamesAPI and MTProxyL interactive installer output (which may contain generated credentials) goes directly to the controlling TTY and is excluded from persistent logs.
 - Preflight domain validation rejects malformed hostnames and case-insensitive duplicates in the SNI/WEB and redirect lists; redirect hostnames are also included in DNS checks. A hostname may intentionally appear in both lists.
 - Preflight port validation rejects malformed/out-of-range public ports, duplicate HTTP/HTTPS ports and bridge/public-port collisions. If `ss` is unavailable before the System stage installs `iproute2`, preflight reports that occupancy checks were skipped rather than claiming ports are free.
 - Bridge-settings wizard is exercised in normal and `--dry-run` modes; the test stubs Python to prove the writer uses only the base shell utilities.
