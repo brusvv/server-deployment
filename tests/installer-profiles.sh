@@ -27,6 +27,7 @@ source "$ROOT/profiles/remnawave-cascade/exit-panel.sh"
 
 # Mandatory stages must fail closed on an explicit decline; eGamesAPI is pinned.
 grep -q 'die "Required system preparation was declined' "$ROOT/modules/01-system.sh"
+grep -q 'gettext-base python3' "$ROOT/modules/01-system.sh"
 grep -q 'die "eGamesAPI installation was not confirmed' "$ROOT/modules/02-remnawave.sh"
 grep -q 'EGAMES_COMMIT="93e6631aae5f7bff28eadfc45faab43150cc22c6"' "$ROOT/modules/02-remnawave.sh"
 grep -q 'exit 10' "$ROOT/modules/04-mtproxyl.sh"
