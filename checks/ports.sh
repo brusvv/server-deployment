@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 source "$SD_ROOT/lib/common.sh"
+command -v ss >/dev/null 2>&1 || die "The ss command (iproute2) is required for reliable port preflight checks."
 
 validate_port_value() {
  local name="$1" value="$2" number
