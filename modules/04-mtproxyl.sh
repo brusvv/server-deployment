@@ -11,7 +11,13 @@ if [[ -n "${MTPROXYL_INSTALLER_LOCAL:-}" ]]; then
  if confirm "Run reviewed local MTProxyL installer?"; then
   [[ -r /dev/tty && -w /dev/tty ]] || die "The local MTProxyL installer requires a controlling TTY; refusing to persist potentially sensitive installer output in logs."
   info "MTProxyL installer output is sent directly to the terminal and is not written to the run log."
-  bash "$MTPROXYL_INSTALLER_LOCAL" > /dev/tty 2>&1
+  if bash "$MTPROXYL_INSTALLER_LOCAL" > /dev/tty 2>&1; then
+   info "MTProxyL installer completed; interactive output was not persisted."
+  else
+   status=$?
+   err "MTProxyL installer failed with exit code $status; review terminal output (not stored in the run log)."
+   exit "$status"
+  fi
  else
   exit 10
  fi
