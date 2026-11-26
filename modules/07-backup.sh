@@ -6,12 +6,6 @@ source "$SD_ROOT/lib/config.sh"
 load_config
 require_root
 
-backup_roots=()
-for path in "$REMNAWAVE_DIR" "${MTProxyL_DIR:-/opt/mtproxyl}" "$HAPROXY_CONFIG" "$SD_ROOT/config"; do
-  [[ -e "$path" || -L "$path" ]] || continue
-  backup_roots+=("$path")
-done
-
 create_backup() {
   local prefix="${1:-server-deployment}" stamp tmp suffix archive
   local -a relative_paths=()
@@ -57,15 +51,14 @@ list_backups() {
 restore_backup() {
   local archive="${1:-}" safe_archive
   [[ -n "$archive" && -f "$archive" && ! -L "$archive" ]] || die "Usage: $0 restore /path/to/archive.tar.gz"
-  (("${#backup_roots[@]}")) || die "No configured restore paths exist on this host."
-
   local -a allowed_roots=()
   allowed_roots=("$REMNAWAVE_DIR" "${MTProxyL_DIR:-/opt/mtproxyl}" "$HAPROXY_CONFIG" "$SD_ROOT/config")
   install -d -m 0700 "$BACKUP_DIR"
   safe_archive="$(mktemp "$BACKUP_DIR/.restore.XXXXXX")"
   chmod 0600 "$safe_archive"
   cp -- "$archive" "$safe_archive"
-  trap 'rm -f -- "$safe_archive"' EXIT
+  RESTORE_TEMP="$safe_archive"
+  trap 'rm -f -- "${RESTORE_TEMP:-}"' EXIT
 
   python3 "$SD_ROOT/lib/backup_archive.py" "$safe_archive" "${allowed_roots[@]}" || die "Backup archive failed safety validation."
   confirm "Restore validated archive '$archive'? Current files will be overwritten." || exit 0
