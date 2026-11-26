@@ -1,248 +1,381 @@
 # server-deployment
 
-Safety-first deployment orchestrator for a single-server stack built around **eGamesAPI Remnawave Reverse Proxy**, Remnawave/Xray, MTProxyL/Telemt and HAProxy.
+Safety-first deployment helpers and integration adapters for a Remnawave two-node cascade, with optional MTProxyL/Telemt, HAProxy and Cloudflare WARP over Xray MASQUE.
 
-> **Status: early development / integration scaffold.** The deployment orchestration and MTProxyL HAProxy integration are under active development. External installers and Remnawave Config Profile mutation remain explicit integration points until their exact upstream versions and API contracts are pinned and tested.
+> **Status: early development / integration scaffold.** This repository is not a one-command installer for the complete A → B topology. It provides preflight checks, host preparation, guarded integrations, configuration adapters and validation. Upstream eGamesAPI and MTProxyL installers remain operator-supplied, reviewed integration points. Remnawave profile changes for the Shadowsocks bridge are performed through the eGamesAPI Server Routing workflow, not automatically by this repository.
 
-## Feature branch: HTTP redirects and SelfSteal website
+## Branch and scope
 
-This branch extends the MTProxyL-managed HAProxy integration. The opt-in HTTP → HTTPS redirect and dedicated ACME HTTP-01 backend are implemented and covered by regression tests. The SelfSteal website choices described below remain a planned feature and are not installed or managed by the current code.
+This README describes **`feature/remnawave-cascade-bridge`**. It supersedes the older HTTP-redirect/SelfSteal feature-branch instructions.
 
-### HTTP → HTTPS redirects
+The target topology is:
 
-- The default remains **Strict**. Leave `HTTP_REDIRECT_DOMAINS` empty to preserve the current HTTP frontend behavior.
-- To opt in, set `HTTP_REDIRECT_DOMAINS` in `config/domains.env` to a space-separated allowlist of hostnames that should receive HTTP → HTTPS redirects. The list is explicit; the script does not assume that every configured SNI hostname should be redirected.
-- Listed hosts receive a same-host `301` redirect to HTTPS. Unknown Host values receive `404`.
-- ACME HTTP-01 requests under `/.well-known/acme-challenge/` bypass the redirect and are routed to the dedicated ACME webroot backend.
-- The ACME backend defaults to `127.0.0.1:18080` (`ACME_WEBROOT_HOST` / `ACME_WEBROOT_PORT`). The service must be listening before redirects are enabled; the HAProxy stage checks it before applying the config.
-- Example loopback-only webroot container:
+| Host | Role | Main responsibilities |
+|---|---|---|
+| **VPS A — Russia / Entry** | Client entry | VLESS + XHTTP inbound; registered Remnawave Node; optional Shadowsocks outbound to B |
+| **VPS B — abroad / Panel + Exit** | Control plane and foreign egress | Remnawave Panel + its local Xray Node; optional Shadowsocks inbound from A; MTProxyL/Telemt and HAProxy |
 
-      install -d -m 0755 /var/www/acme/.well-known/acme-challenge
-      docker run -d --name acme-webroot --restart unless-stopped \
-        -p 127.0.0.1:18080:80 \
-        -v /var/www/acme:/usr/share/nginx/html:ro nginx:alpine
+The Panel and Exit Node intentionally share VPS B. The A → B transport is a separate, optional Shadowsocks bridge. The client-facing VLESS + XHTTP transport and the inter-node Shadowsocks transport are different layers.
 
-- Certbot can use `--webroot -w /var/www/acme`. Existing certificates and renewal configs are not rewritten by the HAProxy stage.
+### Traffic model
 
-### SelfSteal website
+When the bridge is enabled, the intended eGamesAPI Geo Bridge policy is **`direct`**:
 
-Website content is configured independently from HTTP redirect behavior. The planned choices are:
+- Russian IP/domain destinations leave directly through VPS A.
+- Other traffic selected by the Entry profile is sent through the Shadowsocks bridge and exits through VPS B.
+- Telegram MTProto traffic is handled separately by Telemt on B; it does not traverse the A → B Shadowsocks bridge.
 
-1. **Keep current website** — do not replace existing content.
-2. **Built-in website** — install the bundled Polish-language static HTML website.
-3. **Custom website directory** — use an operator-provided website directory.
+This is a geographic split, not a full tunnel. The bridge is disabled by default. Do not apply bridge routing rules while it is disabled or before the B-side inbound, A-side outbound and source-restricted firewall rule are working.
 
-The existing REALITY → Nginx Unix-socket fallback path is to be preserved. Website files must be managed separately from generated HAProxy configuration, and upgrades must not silently overwrite an operator's custom or previously installed website.
+**VLESS Route is deferred** and is not part of this implementation phase.
 
-### Compatibility and safety
+## What the repository does
 
-- HTTP redirects are opt-in through `HTTP_REDIRECT_DOMAINS`; an empty value preserves the strict behavior.
-- Existing HAProxy SNI routing, backend discovery, public binds and ACME handling must remain intact.
-- The MTProxyL WEB backend is normalized to `mtproxyl_web_backend` to avoid a frontend/backend name collision on newer HAProxy releases.
-- The ACME webroot backend is discovered from the active config when present; otherwise the configured loopback endpoint is used.
-- Xray listener validation is deferred by default until Remnawave Node is installed. Set `XRAY_LISTENER_REQUIRED=1` when the listener must be present before applying HAProxy changes.
-- Generated configuration is validated before activation; the active configuration is backed up before replacement.
-- The implementation must support non-interactive/check-only execution without unexpectedly prompting or changing the current defaults.
+- Read-only inventory of the A/B servers with `checks/cascade-audit.sh`.
+- Preflight validation of supported OS, configured domains and network ports.
+- Optional installation of base system packages and creation of state/backup directories.
+- Explicit hand-off to a reviewed local eGamesAPI installer (which installs/configures Remnawave).
+- Remnawave network-adapter guidance for the intended Xray loopback listener; it does not mutate a Config Profile.
+- Explicit hand-off to a reviewed local MTProxyL installer.
+- A guarded HAProxy adapter that edits the active MTProxyL custom config, validates the candidate, backs up the active file and reloads the matching service.
+- Optional HTTP → HTTPS redirects and ACME HTTP-01 routing in the HAProxy adapter.
+- Guarded eGamesAPI patchers for the Panel + local Exit topology and the optional bridge toggle/port policy.
+- Optional Cloudflare WARP over Xray MASQUE outbound management through Remnawave Config Profiles.
+- Project-managed backup create/list/restore actions.
 
-## Deployment order
+### What it does not do automatically
 
-1. **Preflight** — verify OS, domains, privileges and ports.
-2. **System** — install base packages and create state directories.
-3. **eGamesAPI + Remnawave** — use the official eGamesAPI installer; it installs/configures Remnawave as part of its flow. Do not install a second Remnawave stack.
-4. **Network adapter** — prepare and verify the intended Xray inbound change to 127.0.0.1:1443 and preserve the eGamesAPI Nginx Unix-socket fallback. API mutation is disabled until a tested API contract is available.
-5. **MTProxyL** — install the selected, reviewed MTProxyL version and configure internal listeners.
-6. **HAProxy** — update only the Remnawave SNI ACL and Xray backend in MTProxyL's active custom config, validate it, back up the original and reload MTProxyL HAProxy.
-7. **Validation** — check DNS, ports and services.
-8. **Backup** — create/list/restore project-managed backups.
+- It does not reinstall the OS or clean an existing VPS.
+- It does not install a second independent Remnawave stack.
+- It does not download and execute third-party installers automatically.
+- It does not automatically create the A/B Shadowsocks inbound/outbound, service user/squad, routing rules or firewall allowlist. Those operations remain in the eGamesAPI Server Routing workflow and require operator confirmation.
+- It does not automatically mutate the Remnawave inbound for the network adapter.
+- It is not a standalone HAProxy installer. The HAProxy stage expects the MTProxyL-managed custom HAProxy config and service to exist and be active.
+- It does not configure the planned SelfSteal website choices.
 
-Official eGamesAPI upstream launch command (tracks `main`, not a pinned release; review changes before production use):
+## Important defaults
 
-    bash <(curl -Ls https://raw.githubusercontent.com/eGamesAPI/remnawave-reverse-proxy/refs/heads/main/install_remnawave.sh)
+| Setting | Default | Meaning |
+|---|---:|---|
+| `SS_BRIDGE_ENABLED` | `0` | A → B Shadowsocks bridge disabled |
+| `SS_BRIDGE_PORT` | `9999` | Proposed bridge port, TCP + UDP |
+| `SS_BRIDGE_NETWORK` | `tcp,udp` | Bridge transport |
+| `SS_BRIDGE_METHOD` | `chacha20-ietf-poly1305` | Shadowsocks cipher |
+| `XRAY_LOOPBACK_HOST` | `127.0.0.1` | HAProxy → Xray backend host |
+| `XRAY_LOOPBACK_PORT` | `1443` | HAProxy → Xray backend port |
+| `ACME_WEBROOT_HOST:PORT` | `127.0.0.1:18080` | Optional ACME HTTP-01 webroot |
+| `WARP_MASQUE_TRANSPORT` | `h2` | WARP transport; HTTP/2 over TCP/443 |
 
-At the time of this check, the script declares `SCRIPT_VERSION="3.8.4"`, while the latest published GitHub release is `v3.8.0`. The branch script is therefore newer than the latest formal release tag; do not treat those version labels as equivalent.
+The bridge port must be free for both TCP and UDP on B and permitted by the provider. The default port is not assumed to be free. Port 2222 is excluded by the bridge settings validator because it is the eGamesAPI node-control default; verify the actual Node control port before deployment.
 
-**Why this order?** eGamesAPI is first because its installation flow includes Remnawave and expects public HTTPS ports to be available. After installation, Xray can be moved to loopback port 1443. MTProxyL/HAProxy can then own public 80/443.
+Historical MTProxy backend `127.0.0.1:15443/tcp` is **not** the Shadowsocks bridge. Do not reuse it for the bridge.
 
-## Installing this feature branch
+## Before deployment: audit both VPSs
 
-To install this branch rather than `main`:
+Run the read-only inventory separately on each host:
 
-    git clone --depth 1 --branch feature/http-redirect-selfsteal-website https://github.com/brusvv/server-deployment.git /opt/server-deployment
-    cd /opt/server-deployment
-    cp config/domains.env.example config/domains.env
-    nano config/domains.env
-    bash install.sh --check
+```bash
+sudo bash checks/cascade-audit.sh A
+sudo bash checks/cascade-audit.sh B
+```
 
-If `config/domains.env` already exists from a previous installation, preserve it
-when replacing the checkout and do not overwrite it with the example file. Set
-real hostnames you control before running preflight; the example domains are
-placeholders and will fail validation.
+Use the matching role argument on the matching VPS. The audit reports OS/resources, interfaces/routes, listening sockets, relevant systemd units, Docker names/images/status/ports and firewall state.
 
-## Quick start
+The audit deliberately does not read secrets, service environment variables, Docker environment variables or process command lines. Its output can still contain public/private IP addresses, hostnames and firewall source addresses. Review and redact it before sharing.
 
-Remote bootstrap (clones the repository to `/opt/server-deployment` and starts the local installer):
-
-    curl -fsSL https://raw.githubusercontent.com/brusvv/server-deployment/main/install.sh | bash -s -- --check
-
-For an explicit execution run, pass `--run` (the default is check-only):
-
-    curl -fsSL https://raw.githubusercontent.com/brusvv/server-deployment/main/install.sh | sudo bash -s -- --run
-
-You can override the clone location with `SD_INSTALL_DIR=/path/to/server-deployment`.
-
-For a manual checkout:
-
-    git clone https://github.com/brusvv/server-deployment.git
-    cd server-deployment
-    cp config/domains.env.example config/domains.env
-    nano config/domains.env
-    chmod +x install.sh modules/*.sh checks/*.sh tests/*.sh
-    sudo ./install.sh --check
-
-Default mode is check-only. Execute one stage explicitly:
-
-    sudo ./install.sh --run --stage preflight
-    sudo ./install.sh --run --stage system
-    sudo ./install.sh --check --stage haproxy
-    sudo ./install.sh --run --stage haproxy
-
-The HAProxy stage only applies when the MTProxyL custom HAProxy config is already active and its service is running. In run mode it offers an interactive port setup: option 1 adopts the layout discovered from the active config; option 2 lets the operator enter target ports; option 0 exits without changes. If a selected backend is not listening yet, or a requested public bind is occupied, the stage saves a root-only pending plan under the configured state directory and does not touch or reload the active config. Configure the underlying service(s), then rerun the stage and choose option 2 to reuse/edit the pending values.
-
-## Layout
-
-- config/ — Remnawave SNI domains, ports and service paths.
-- lib/ — shared Bash helpers and config loading.
-- modules/ — ordered deployment stages.
-- checks/ — DNS, port and service diagnostics.
-- tests/ — static shell checks.
-- .github/workflows/ — CI lint and syntax checks.
+Before changing an existing server, save the audit output and make an independent backup of important application data and configuration. The project backup is not a substitute for a full VPS/provider snapshot.
 
 ## Requirements
 
-- Debian or Ubuntu (other distributions are not yet supported).
-- Root access for installation stages.
-- DNS records for all configured domains.
-- Public TCP 80/443 reachable from the Internet.
-- Operator-reviewed, version-pinned upstream installers.
+- Debian or Ubuntu; other distributions are not supported by preflight.
+- Root access for execution stages.
+- Python 3, Bash and the utilities installed by the System stage.
+- DNS records for the configured domains.
+- Public TCP 80/443 available when deploying the B-side web/HAProxy stack.
+- Operator-reviewed upstream installer copies and known versions.
+- For the A → B bridge: verified A source/egress address, B listener port availability and provider/firewall support for TCP and UDP.
 
-## Network model
+Do not assume A and B have a private network. Verify provider support, routes and MTU before choosing private addressing. If using public addresses, identify A's actual source address as seen by B (including NAT).
 
-    Internet :80
-           |
-           v
-    HAProxy HTTP frontend
-           |-- ACME path (when redirects are enabled) -> 127.0.0.1:18080
-           |-- listed Host values                     -> same-host HTTPS 301
-           `-- unknown Host values                    -> HTTP 404
+## Install this branch
 
-    Internet :443
-           |
-           v
-    HAProxy TCP/SNI frontend
-           |-- WEB SNI        -> MTProxyL WEB TLS backend
-           |-- Remnawave SNI  -> 127.0.0.1:1443 (Xray)
-           `-- default        -> MTProxyL MTProto backend
+Do **not** use the README's historical remote bootstrap pattern for this branch. The bootstrap path in `install.sh` clones `main` when it is run from stdin. Clone the branch explicitly, then execute the local checkout.
 
-    Xray fallback -> eGamesAPI Nginx Unix socket
+```bash
+apt-get update
+apt-get install -y git
 
-**Current scope:** every hostname listed in `REMNAWAVE_SNI_DOMAINS` is sent to the Xray backend. This adapter does not yet create separate HTTPS routes for Remnawave Panel or Subscription Page. Do not assign those hostnames to web applications until a separate reverse-proxy route is implemented and tested.
+git clone --depth 1 \
+  --branch feature/remnawave-cascade-bridge \
+  https://github.com/brusvv/server-deployment.git \
+  /opt/server-deployment
 
-The verified reference-server state, including listener ports, ACME validation, certificate state, resource limits and items still outstanding, is recorded in [docs/validated-server-baseline-2026-11-18.md](docs/validated-server-baseline-2026-11-18.md). The document contains no deployment-specific domain names, IPs or secrets.
+cd /opt/server-deployment
+```
 
-The HAProxy stage is an adapter for the MTProxyL-managed configuration, not a standalone HAProxy installer. Set `REMNAWAVE_SNI_DOMAINS` in `config/domains.env` as a space-separated list and set `WEB_DOMAIN` separately. Set `HTTP_REDIRECT_DOMAINS` explicitly when same-host HTTP → HTTPS redirects are desired; leave it empty to keep the strict/default behavior. The stage requires MTProxyL to use `FRONT_SERVER='haproxy'` with `NGINX_CUSTOM_ENABLED='true'`.
+Create the host-specific domain config:
 
-Discovery reads the active HAProxy config as the source of truth for public binds and backend endpoints. It recognizes both the legacy `mtproxyl_web` backend and the normalized `mtproxyl_web_backend`, plus the optional `mtproxyl_acme` backend. When redirects are enabled, the ACME webroot listener must be reachable at `ACME_WEBROOT_HOST:ACME_WEBROOT_PORT` (defaults to `127.0.0.1:18080`). The WEB TLS local bind and its upstream endpoint are updated together; Selfmask and static backend endpoints are discovered independently.
+```bash
+cp config/domains.env.example config/domains.env
+nano config/domains.env
+```
 
-The recommended option preserves the discovered port layout. Manual mode accepts target ports for Xray, MTProto, WEB TLS/HTTP, the Selfmask backend, the static backend and the Selfmask local bind. Public HTTP/HTTPS entry ports are always retained from discovery. Backend readiness checks match the requested bind address and configurable process-name hints (`XRAY_LISTENER_PROCESS_HINT`, `MTPROTO_LISTENER_PROCESS_HINT`, `WEB_HTTP_LISTENER_PROCESS_HINT`, `SELFSTEAL_BACKEND_PROCESS_HINT` and `STATIC_LISTENER_PROCESS_HINT` in `config/services.env`). Xray readiness is deferred by default until Node installation; set `XRAY_LISTENER_REQUIRED=1` to make it mandatory. If a required backend is not listening or a requested new local HAProxy bind is occupied, the stage saves a root-only pending plan and makes no active-config change.
+Set real hostnames you control:
 
-Once ready, the stage patches only the managed bind/server directives, Remnawave SNI ACL and the explicitly enabled HTTP/ACME rules, validates the candidate with the configured MTProxyL HAProxy binary, creates a timestamped backup and reloads the service. If validation fails, the active file is left untouched; if reload fails, the previous file is restored.
+- `REMNAWAVE_SNI_DOMAINS`: space-separated SNI hostnames routed to Xray.
+- `WEB_DOMAIN`: the separate WEB hostname.
+- `HTTP_REDIRECT_DOMAINS`: optional explicit allowlist for HTTP → HTTPS redirects. Leave empty to preserve the default strict behavior.
 
-## Safety
+The example hostnames are placeholders and will fail preflight. If `config/domains.env` already exists, preserve it; do not overwrite it with the example file.
 
-- No automatic firewall changes or service stops.
-- No secrets belong in tracked files.
-- Third-party installers are not downloaded and executed automatically. The optional bootstrap command above fetches this project's own installer from `main`; review it before running and pin a commit for reproducible deployments.
-- Existing files are backed up before replacement by project-managed operations.
-- No Remnawave Config Profile is modified until its exact API schema, profile and inbound identifiers are verified.
-- Check-only is the default.
+Review `config/ports.env` and `config/services.env` before running anything. Keep `SS_BRIDGE_ENABLED="0"` until the A/B bridge is deliberately being provisioned.
 
-## Development
+Run the read-only preflight:
 
-    ./tests/shellcheck.sh
+```bash
+sudo ./install.sh --check
+```
 
-This project is not affiliated with eGamesAPI, Remnawave or MTProxyL.
+Check-only is the default. It does not install packages, run external installers, register WARP or mutate a Remnawave Config Profile.
 
+## Installation workflow
 
+The repository stages are deliberately separated:
 
-## Branch scope and bootstrap behavior
+1. **Preflight** — checks OS, configured domains, DNS and ports.
+2. **System** — after confirmation, installs base packages and creates state/log/backup directories.
+3. **eGamesAPI + Remnawave** — runs only a local reviewed installer supplied through `EGAMES_INSTALLER_LOCAL`. eGamesAPI is the installation entry point; do not install a second independent Remnawave stack.
+4. **Network adapter** — reports the intended Xray loopback change and fallback expectations. It does not update a Remnawave profile.
+5. **MTProxyL** — runs only a local reviewed installer supplied through `MTPROXYL_INSTALLER_LOCAL`.
+6. **HAProxy** — integrates with an already active MTProxyL custom HAProxy config; it does not install MTProxyL or HAProxy.
+7. **Validation** — checks domains, ports and services.
+8. **WARP MASQUE** — optional interactive setup; the default answer is No.
 
-The remote bootstrap command in this README tracks **`main`**. It does not select this cascade branch. To work with the cascade implementation, clone the branch explicitly:
+The full interactive run asks whether to enable the Shadowsocks bridge and saves the selected settings locally. That wizard does **not** create or remove live bridge components. Answer No for a single-server test or until the A/B bridge has been reviewed.
 
-    git clone --depth 1 --branch feature/remnawave-cascade-bridge https://github.com/brusvv/server-deployment.git
-    cd server-deployment
+### Run modes and individual stages
 
-The branch's `install.sh` bootstrap still defaults to cloning `main` when run from stdin; use the explicit branch checkout above, then run local commands from that checkout. The default deployment mode remains check-only.
+```bash
+# Read-only checks (default)
+sudo ./install.sh --check
 
-## Remnawave cascade branch
+# Preview execution without applying changes
+sudo ./install.sh --run --dry-run
 
-This branch implements the main route for **VPS A (Russia — Entry) → VPS B (abroad — Panel + Exit)**.
+# Run the full interactive stage sequence
+sudo ./install.sh --run
 
-- Client-facing VLESS + XHTTP terminates on A.
-- When enabled, A → B uses a dedicated Shadowsocks bridge over TCP + UDP with `chacha20-ietf-poly1305`.
-- The primary eGamesAPI Geo Bridge policy is `direct`: Russian IP/domain destinations leave directly through A; other traffic from the selected public profile is sent through the SS bridge and exits via B.
-- The optional bridge is disabled by default (`SS_BRIDGE_ENABLED=0`). Its configurable `SS_BRIDGE_PORT` defaults to `9999/tcp+udp`; the selected port is not assumed free or listening.
-- MTProto/Telemt is a separate service on B. Its Telegram traffic does not use the Shadowsocks bridge.
+# Run a single stage
+sudo ./install.sh --run --stage preflight
+sudo ./install.sh --run --stage system
+sudo ./install.sh --run --stage remnawave
+sudo ./install.sh --run --stage adapter
+sudo ./install.sh --run --stage mtproxyl
+sudo ./install.sh --run --stage haproxy
+sudo ./install.sh --run --stage validate
+sudo ./install.sh --run --stage backup
+sudo ./install.sh --run --stage warp-masque
+```
 
-Before any deployment, run the read-only inventory on each VPS:
+Available stages: `preflight`, `system`, `remnawave`, `adapter`, `mtproxyl`, `haproxy`, `validate`, `backup`, `warp-masque`.
 
-    sudo bash checks/cascade-audit.sh A
-    sudo bash checks/cascade-audit.sh B
+The eGamesAPI and MTProxyL stages only execute installers when the corresponding environment variable points to an existing local file. Review and pin those installer files yourself before setting the variables. For example:
 
-Run each command on the server identified by the argument. The audit does not read secrets, service environments, Docker environment variables or process command lines. Its output does include network addresses and firewall source addresses; review those before sharing.
+```bash
+export EGAMES_INSTALLER_LOCAL=/root/installers/reviewed-egamesapi-installer.sh
+export MTPROXYL_INSTALLER_LOCAL=/root/installers/reviewed-mtproxyl-installer.sh
+```
 
-### eGamesAPI local Exit compatibility
+The variables are hand-off paths, not downloads. Do not point them at unreviewed scripts.
 
-The stock eGamesAPI Server Routing module rejects an Exit host that matches the Panel's public IP, even when that host is the already registered local Node on VPS B. This branch includes a narrow, fail-closed compatibility patch. It allows the co-located Exit only when eGamesAPI can find the matching Node record, its profile, and a connected state; it does not disable the guard generally or permit a new/unknown local Node.
+## A/B Shadowsocks bridge
 
-Locate the module on B, check the exact patch context, then apply it interactively:
+### Settings
 
-    sudo find /opt/remnawave -type f -name server_routing.sh -print
-    sudo python3 checks/egamesapi-local-exit-compat.py --check /path/to/server_routing.sh
-    sudo python3 checks/egamesapi-local-exit-compat.py --apply /path/to/server_routing.sh
+The bridge settings are in `config/ports.env`:
 
-If the check says the module is not patchable, stop. Do not edit the guard manually; inspect the installed eGamesAPI version and Node address first. The patch creates a timestamped backup and validates Bash syntax before replacing the module.
+```bash
+SS_BRIDGE_ENABLED="0"
+SS_BRIDGE_BIND="0.0.0.0"
+SS_BRIDGE_PORT="9999"
+SS_BRIDGE_NETWORK="tcp,udp"
+SS_BRIDGE_METHOD="chacha20-ietf-poly1305"
+```
 
-Design notes:
+Use the local wizard to record the intended state:
 
-- [Remnawave cascade bridge plan](docs/remnawave-cascade-bridge-plan.md)
-- [MTProto networking model](docs/mtproto-networking.md)
+```bash
+./install.sh --configure-bridge
+```
 
-VLESS Route is intentionally deferred. Do not configure the VLESS Route bridge during this phase.
+It validates the port, writes a timestamped backup of `config/ports.env` and changes only that local file. It does not create an inbound/outbound, change a firewall or modify a Remnawave profile. A full interactive `./install.sh --run` asks the same question before running all stages. Check-only and non-interactive runs never prompt.
 
-### Optional Shadowsocks bridge settings
+Changing the configured port while a bridge is active does not migrate its existing inbound, outbound or firewall state. Run eGamesAPI Teardown first, then recreate the bridge with the new port. Setting the local flag to `0` is not a teardown command.
 
-- The bridge is disabled by default: `SS_BRIDGE_ENABLED="0"` in `config/ports.env`.
-- Run `./install.sh --configure-bridge` to choose enabled/disabled and, when enabled, the TCP+UDP port (default `9999`). An interactive full `./install.sh --run` asks the same questions before the stages begin. Changing the port while enabled updates only local config; the existing tunnel keeps its current settings. Run eGamesAPI Teardown before recreating it on the new port. Setting the bridge flag to `0` also does not stop an active tunnel; use Teardown first.
-- Valid port range: `1–65535`, excluding `2222` (the eGamesAPI node-control default). Preflight checks the selected TCP and UDP port only when the bridge is enabled, and stops on a collision.
-- Check-only and non-interactive runs never prompt; they use the saved settings.
+### eGamesAPI adapters for Panel + local Exit on B
 
-The wizard updates only the local `config/ports.env` file and creates a timestamped backup. On VPS B, the eGamesAPI adapter reads those settings at runtime: it blocks Geo Bridge setup/attachment while disabled, forces the configured port, and pins the Geo Bridge routing mode to `direct`. Run `checks/egamesapi-bridge-adapters.sh --check` with the module and config paths before applying; `--apply` installs both guarded patches in order. Actual Remnawave inbound, service user/squad, Entry outbound/routing and source-restricted firewall operations still run through the eGamesAPI Server Routing workflow with explicit confirmation; see [the cascade plan](docs/remnawave-cascade-bridge-plan.md).
+The upstream eGamesAPI Server Routing module normally rejects an Exit host that resolves to the same public IP as the Panel. This topology intentionally places Panel + Exit on B. The repository includes a narrow compatibility patch that permits the same-box case only when the matching Node already exists, is connected and has an active profile. It does not install a Node or change Panel objects.
 
+On B, locate the actual module:
+
+```bash
+sudo find /opt/remnawave -type f -name server_routing.sh -print
+```
+
+Check and apply the same-box compatibility patch:
+
+```bash
+sudo python3 checks/egamesapi-local-exit-compat.py --check /absolute/path/to/server_routing.sh
+sudo python3 checks/egamesapi-local-exit-compat.py --apply /absolute/path/to/server_routing.sh
+```
+
+Then check and apply the bridge toggle/port/direct-mode adapters:
+
+```bash
+sudo bash checks/egamesapi-bridge-adapters.sh \
+  --check \
+  --config-file /opt/server-deployment/config/ports.env \
+  --module /absolute/path/to/server_routing.sh
+
+sudo bash checks/egamesapi-bridge-adapters.sh \
+  --apply \
+  --config-file /opt/server-deployment/config/ports.env \
+  --module /absolute/path/to/server_routing.sh
+```
+
+Use the real checkout path if it is not `/opt/server-deployment`. The combined `--apply` flow requires typing `APPLY`, creates timestamped backups and verifies both patches. It modifies only the eGamesAPI module file; it does not create a Node, profile, inbound, service user/squad, firewall rule or live route.
+
+If either patcher reports that the installed source differs from the expected context, stop. Do not manually bypass the same-box guard. Recheck compatibility after eGamesAPI updates because an upstream update may replace its cached module.
+
+### Create and remove the live bridge
+
+After the adapters are installed and verified, use eGamesAPI's own workflow under **Node extensions → Server Routing (bridge)**:
+
+- Select B as the Exit and the intended Entry profile on A.
+- Use the dedicated Shadowsocks bridge inbound on B and outbound/routing on A.
+- Use the `direct` Geo Bridge policy for the Russia-Entry → foreign-Exit topology.
+- Restrict B's bridge port to A's actual source address for both TCP and UDP.
+- Confirm the bridge inbound, Entry outbound, routing and firewall state before sending user traffic through it.
+
+The adapters force the configured bridge port and `direct` mode, and block new setup/attachment while the bridge is disabled. They do not perform the live eGamesAPI workflow for you.
+
+**Teardown order matters.** Use eGamesAPI Teardown first to remove Entry routes/outbound, service user/squad and recorded UFW rules. Then inspect B's active Config Profile and remove only the dedicated bridge inbound, preserving every existing user-facing inbound. Only after teardown should you set `SS_BRIDGE_ENABLED="0"`. Do not simply stop the B listener while A still routes traffic through it.
+
+See [the detailed cascade plan](docs/remnawave-cascade-bridge-plan.md) for the topology, routing order, firewall model, same-box compatibility rationale and implementation phases.
+
+## MTProxyL, HAProxy and HTTP redirects
+
+MTProxyL/Telemt is a separate service on B. Its Telegram traffic is not part of the A → B Shadowsocks bridge.
+
+The HAProxy stage is an **adapter** for the active MTProxyL-managed custom configuration. It requires:
+
+- The configured HAProxy config, binary and MTProxyL settings file to exist.
+- `FRONT_SERVER='haproxy'` and `NGINX_CUSTOM_ENABLED='true'` in MTProxyL settings.
+- The configured systemd service to reference the same HAProxy config and binary.
+- The service to be active before a live reload.
+
+It discovers the existing port layout and changes only managed bind/server directives, Remnawave SNI routing and explicitly enabled HTTP/ACME rules. It validates the candidate with the configured HAProxy binary and creates a timestamped backup before replacement. If reload fails, it restores the previous file and attempts to reload it.
+
+In interactive run mode:
+
+- Option 1 adopts the port layout discovered from the active config.
+- Option 2 allows internal backend ports to be entered manually.
+- Option 0 exits without changes.
+
+If a backend is not ready or a requested internal bind is occupied, the stage saves a root-only pending plan and does not replace or reload the active config. Public HTTP/HTTPS ports are retained from discovery.
+
+### HTTP → HTTPS and ACME
+
+Redirects are opt-in through `HTTP_REDIRECT_DOMAINS` in `config/domains.env`:
+
+- Only explicitly listed Host values receive same-host HTTP → HTTPS redirects.
+- Unknown Host values receive 404.
+- ACME HTTP-01 requests under `/.well-known/acme-challenge/` bypass redirects and are sent to the configured webroot backend.
+- The default webroot endpoint is `127.0.0.1:18080` (`ACME_WEBROOT_HOST` / `ACME_WEBROOT_PORT`).
+- The webroot service must already be listening when redirects are enabled.
+
+The HAProxy stage does not install Certbot, issue certificates or rewrite existing certificate-renewal configuration. Leave `HTTP_REDIRECT_DOMAINS` empty to retain the default strict HTTP behavior.
+
+The current HAProxy adapter sends hostnames in `REMNAWAVE_SNI_DOMAINS` to the Xray backend. It does not implement separate HTTPS reverse-proxy routes for the Panel or Subscription Page. Do not repurpose those SNI names for web applications until a separate route has been implemented and tested.
 
 ## Optional Cloudflare WARP over Xray MASQUE
 
-WARP/MASQUE is an optional Xray outbound, independent of HAProxy, MTProxyL and the A-to-B Shadowsocks bridge.
+WARP/MASQUE is an optional Xray outbound. It is independent of HAProxy, MTProxyL and the A → B Shadowsocks bridge.
 
-- The installation flow asks whether to configure WARP MASQUE; the default is No.
-- Run sudo ./manage.sh later to register or re-register a WARP MASQUE device, add or remove the outbound in a selected Remnawave Config Profile, choose routing policy, or switch HTTP/2 and HTTP/3.
-- HTTP/2 over TCP/443 is the default. HTTP/3 requires outbound UDP/443. WARP is not an anonymity service and does not let you choose or impersonate a country/IP region.
-- The manager requires Xray-core 26.10.31 or newer and checks the installed local/Remnawave Node binary before applying a profile. For safety, it refuses profiles attached to multiple nodes because it cannot independently verify every remote Node's core version.
-- Routing defaults to outbound only: adding the outbound does not redirect user traffic. The operator can explicitly choose unmatched traffic or a list of domains.
-- Before each Config Profile update, the full profile is saved under the configured WARP backup directory. The manager updates the complete config object through the Remnawave API and verifies the result.
-- API credentials and WARP private keys are stored outside the repository with mode 0600; no credentials belong in tracked files.
-- The consumer registration endpoint is undocumented/reverse-engineered and may change. Registration requires an explicit typed acknowledgement of Cloudflare's Terms of Service. Re-registering creates a new device; it does not automatically revoke an old Cloudflare registration.
-- The manager refuses to overwrite an existing warp-masque outbound or remove profile rules it cannot prove it owns.
-- Profile changes require exactly one attached Node and explicit operator confirmation that it is the Node on the local VPS. The manager cannot independently verify the Node's physical host identity; shared profiles are rejected.
+The install flow offers optional setup; the default is No. It can also be managed later:
 
-Copy config/warp-masque.env.example to config/warp-masque.env to override defaults. No WARP registration or Remnawave profile mutation occurs in check-only mode.
+```bash
+sudo ./manage.sh
+```
 
+The manager supports:
+
+- Remnawave Panel API connection.
+- WARP device registration/re-registration.
+- Adding/updating and disabling the managed outbound in a selected Config Profile.
+- Routing policy: outbound only, unmatched traffic, or selected domains.
+- Switching between HTTP/2 (`h2`) and HTTP/3 (`h3`).
+- Status and endpoint probe.
+
+Important limitations and safeguards:
+
+- Xray-core **26.10.31 or newer** is required by the current configuration guard.
+- HTTP/2 uses TCP/443; HTTP/3 requires outbound UDP/443.
+- WARP does not provide a selectable country exit and is not an anonymity service.
+- Adding the outbound alone does not redirect user traffic; routing must be selected explicitly.
+- Profile changes require exactly one attached Node and a typed confirmation that it is the local VPS Node. The manager cannot independently verify a Node's physical host identity.
+- A full Config Profile backup is created before each profile update; the result is read back and checked.
+- API credentials and private keys are stored outside the repository with restrictive permissions. Never commit `config/warp-masque.env`, state files or credentials.
+- The consumer registration API is undocumented/reverse-engineered and may change. Registration requires explicit acknowledgement of Cloudflare's Terms. Re-registering creates a new device; it does not automatically revoke the previous registration.
+- The endpoint probe is not a complete egress test. Verify the actual Xray routing and observed public egress separately.
+
+Optional overrides can be placed in `config/warp-masque.env`; start from `config/warp-masque.env.example`. Check-only mode does not register a device or mutate a Remnawave profile.
+
+## Configuration files
+
+| File | Purpose |
+|---|---|
+| `config/domains.env` | Host-specific SNI, WEB and optional redirect domains; create locally from the example |
+| `config/ports.env` | Public/internal ports and optional A/B bridge settings |
+| `config/services.env` | Service paths, systemd unit, binary and process-name hints |
+| `config/warp-masque.env` | Optional WARP overrides; create locally from the example |
+
+Do not commit live `.env` files, domain inventories that reveal infrastructure, public IPs, credentials, UUIDs, Shadowsocks passwords, Telegram secrets, API tokens, private keys or certificates.
+
+## Backups
+
+The project backup stage supports:
+
+- Create: `sudo ./install.sh --run --stage backup`
+- List: run the backup module with `list`.
+- Restore: run the backup module with `restore /path/to/archive.tar.gz`; restoration requires confirmation and may overwrite existing files.
+
+The default backup directory is `/var/backups/server-deployment`. Archives are created with restrictive permissions. Review the archive contents before restoring. Maintain a separate provider snapshot or off-server backup for critical data.
+
+## Single-VPS testing
+
+The repository can be checked and its local components can be tested on one VPS, with `SS_BRIDGE_ENABLED="0"`. This is useful for validating the host setup, MTProxyL/HAProxy integration and optional WARP manager.
+
+A single VPS is **not** a functional A → B cascade test. It cannot validate the geographic split, cross-server transport, source-restricted firewall, foreign egress address or independent failure behavior. Do not describe a loopback/two-process test as proof of the real cascade.
+
+## Development and tests
+
+Run the repository test suite from the checkout:
+
+```bash
+bash tests/shellcheck.sh
+```
+
+CI runs shell checks, Python compilation and the repository regression tests on pushes and pull requests.
+
+## Project layout
+
+- `config/` — local configuration examples and tracked defaults.
+- `modules/` — installer stages.
+- `lib/` — shared shell/Python logic.
+- `checks/` — read-only audits and guarded eGamesAPI adapters.
+- `tests/` — regression tests.
+- `docs/` — topology and implementation notes.
+- `.github/workflows/` — CI workflows.
+
+This project is not affiliated with eGamesAPI, Remnawave, MTProxyL, Telemt or Cloudflare.
