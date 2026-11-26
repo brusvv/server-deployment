@@ -14,6 +14,7 @@ source "$ROOT/profiles/remnawave-standard/profile.sh"
 source "$ROOT/profiles/remnawave-extended/profile.sh"
 [[ "$PROFILE_ID" == "remnawave-extended" ]]
 [[ "${PROFILE_STAGES[*]}" == "preflight backup system remnawave adapter mtproxyl haproxy validate warp-masque" ]]
+[[ "${PROFILE_OPTIONAL_STAGES[*]}" == "mtproxyl haproxy warp-masque" ]]
 
 source "$ROOT/profiles/remnawave-cascade/entry.sh"
 [[ "$PROFILE_ID" == "remnawave-cascade-entry" ]]
@@ -22,5 +23,13 @@ source "$ROOT/profiles/remnawave-cascade/entry.sh"
 source "$ROOT/profiles/remnawave-cascade/exit-panel.sh"
 [[ "$PROFILE_ID" == "remnawave-cascade-exit-panel" ]]
 [[ "${PROFILE_STAGES[*]}" == "preflight backup system remnawave adapter mtproxyl haproxy validate warp-masque" ]]
+[[ "${PROFILE_OPTIONAL_STAGES[*]}" == "mtproxyl haproxy warp-masque" ]]
+
+# Mandatory stages must fail closed on an explicit decline; eGamesAPI is pinned.
+grep -q 'die "Required system preparation was declined' "$ROOT/modules/01-system.sh"
+grep -q 'die "eGamesAPI installation was not confirmed' "$ROOT/modules/02-remnawave.sh"
+grep -q 'EGAMES_COMMIT="93e6631aae5f7bff28eadfc45faab43150cc22c6"' "$ROOT/modules/02-remnawave.sh"
+grep -q 'exit 10' "$ROOT/modules/04-mtproxyl.sh"
+grep -q 'PROFILE_OPTIONAL_STAGES' "$ROOT/installer/main.sh"
 
 printf 'Installer profile tests passed.\n'
