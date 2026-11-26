@@ -54,7 +54,9 @@ bash -n "$installer" || die "Pinned eGamesAPI installer failed bash syntax valid
 
 info "Launching eGamesAPI $EGAMES_VERSION ($EGAMES_COMMIT)."
 info "Choose menu item 1, then item 1 (Panel + Node on one server)."
-bash "$installer"
+[[ -r /dev/tty && -w /dev/tty ]] || die "The eGamesAPI installer requires a controlling TTY; refusing to run where its generated admin credentials could be captured in logs."
+info "eGamesAPI interactive output is sent directly to the terminal and is not written to the run log because its completion banner contains admin credentials."
+bash "$installer" > /dev/tty 2>&1
 
 have docker || die "eGamesAPI returned without making the Docker CLI available."
 bash "$SD_ROOT/checks/remnawave-container-audit.sh"
