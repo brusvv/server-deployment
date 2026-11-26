@@ -38,7 +38,7 @@ wait_for_healthy() {
         return 0
         ;;
       unhealthy)
-        die "Container $container reported unhealthy."
+        die "Container $container is not healthy (health: unhealthy)."
         ;;
       starting)
         sleep 3
