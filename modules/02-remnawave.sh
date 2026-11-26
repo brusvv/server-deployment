@@ -17,6 +17,10 @@ For this single-host profile, select:
 
 IMPORTANT: eGamesAPI documents the combined Panel + Node mode as not recommended
 for production. It recommends separate Panel-only / Node-only deployment modes.
+
+The eGamesAPI script commit is pinned, but its generated Compose file uses mutable
+image tags (including backend:3 and latest tags). Actual image IDs and repository
+digests will be recorded after installation; this does not make those tags pinned.
 EOF
 
 confirm "I understand the single-server Panel + Node limitation; continue with eGamesAPI?" ||
@@ -51,13 +55,7 @@ info "Choose menu item 1, then item 1 (Panel + Node on one server)."
 bash "$installer"
 
 have docker || die "eGamesAPI returned without making the Docker CLI available."
-docker ps --format '{{.Names}}' > "$work_dir/running-containers"
-grep -qxE 'remnawave(-db)?' "$work_dir/running-containers" ||
-  die "eGamesAPI returned success, but the Remnawave Panel container is not running."
-grep -qx 'remnanode' "$work_dir/running-containers" ||
-  die "eGamesAPI returned success, but the local Remnawave Node container is not running."
-
-info "Verified running containers: Remnawave Panel and local Remnawave Node."
+bash "$SD_ROOT/checks/remnawave-container-audit.sh"
 
 # Harden the generated Nginx response before declaring the eGamesAPI stage complete.
 # The helper backs up the host config, validates it inside the container and reloads
