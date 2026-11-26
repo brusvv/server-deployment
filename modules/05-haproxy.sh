@@ -203,14 +203,10 @@ for key in WEB_TLS_PORT SELFSTEAL_PORT; do
  fi
 done
 
-if [[ "${XRAY_BACKEND_PRESENT}" == true ]]; then
- if [[ "$XRAY_LISTENER_REQUIRED" == 1 ]]; then
-  check_backend_listener "Xray" "$XRAY_LOOPBACK_HOST" "$XRAY_LOOPBACK_PORT" "${XRAY_LISTENER_PROCESS_HINT:-rw-core}" || READY=0
- else
-  warn "Xray listener validation is deferred (XRAY_LISTENER_REQUIRED=0); expected target is $XRAY_LOOPBACK_HOST:$XRAY_LOOPBACK_PORT."
- fi
+if [[ "$XRAY_LISTENER_REQUIRED" == 1 ]]; then
+ check_backend_listener "Xray" "$XRAY_LOOPBACK_HOST" "$XRAY_LOOPBACK_PORT" "${XRAY_LISTENER_PROCESS_HINT:-rw-core}" || READY=0
 else
- warn "Remnawave Xray backend is not present yet; the configured target $XRAY_LOOPBACK_HOST:$XRAY_LOOPBACK_PORT will be added and listener validation deferred until Remnawave installation."
+ warn "Xray listener validation is deferred (XRAY_LISTENER_REQUIRED=0); expected target is $XRAY_LOOPBACK_HOST:$XRAY_LOOPBACK_PORT."
 fi
 check_backend_listener "MTProto" "$MTPROTO_BACKEND_HOST" "$MTPROTO_BACKEND_PORT" "${MTPROTO_LISTENER_PROCESS_HINT:-edgeguardd}" || READY=0
 check_backend_listener "WEB HTTP" "$WEB_HTTP_HOST" "$WEB_HTTP_PORT" "${WEB_HTTP_LISTENER_PROCESS_HINT:-edgeguardd}" || READY=0
