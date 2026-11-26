@@ -34,7 +34,7 @@ This is a geographic split, not a full tunnel. The bridge is disabled by default
 - Read-only inventory of the A/B servers with `checks/cascade-audit.sh`.
 - Preflight validation of supported OS, configured domains and network ports.
 - Optional installation of base system packages and creation of state/backup directories.
-- Explicit hand-off to a reviewed local eGamesAPI installer (which installs/configures Remnawave).
+- Pinned eGamesAPI installer execution for Remnawave Panel + local Node (and the subscription page/reverse proxy bundled by its combined mode), with post-install container checks.
 - Remnawave network-adapter guidance for the intended Xray loopback listener; it does not mutate a Config Profile.
 - Explicit hand-off to a reviewed local MTProxyL installer.
 - A guarded HAProxy adapter that edits the active MTProxyL custom config, validates the candidate, backs up the active file and reloads the matching service.
@@ -47,7 +47,7 @@ This is a geographic split, not a full tunnel. The bridge is disabled by default
 
 - It does not reinstall the OS or clean an existing VPS.
 - It does not install a second independent Remnawave stack.
-- It does not download and execute third-party installers automatically.
+- It does not execute floating third-party installer branches. The eGamesAPI stage fetches one pinned commit after explicit confirmation; MTProxyL remains an operator-supplied local installer.
 - It does not automatically create the A/B Shadowsocks inbound/outbound, service user/squad, routing rules or firewall allowlist. Those operations remain in the eGamesAPI Server Routing workflow and require operator confirmation.
 - It does not automatically mutate the Remnawave inbound for the network adapter.
 - It is not a standalone HAProxy installer. The HAProxy stage expects the MTProxyL-managed custom HAProxy config and service to exist and be active.
@@ -92,7 +92,7 @@ Before changing an existing server, save the audit output and make an independen
 - Python 3, Bash and the utilities installed by the System stage.
 - DNS records for the configured domains.
 - Public TCP 80/443 available when deploying the B-side web/HAProxy stack.
-- Operator-reviewed upstream installer copies and known versions.
+- Network access to GitHub for the pinned eGamesAPI source; an operator-reviewed local MTProxyL installer if that optional component is selected.
 - For the A → B bridge: verified A source/egress address, B listener port availability and provider/firewall support for TCP and UDP.
 
 Do not assume A and B have a private network. Verify provider support, routes and MTU before choosing private addressing. If using public addresses, identify A's actual source address as seen by B (including NAT).
@@ -146,15 +146,15 @@ When started with no arguments in an interactive terminal, `./install.sh` opens 
 2. **Remnawave + дополнительные компоненты** — the extended single-host profile with the network adapter, MTProxyL, HAProxy integration and optional WARP/MASQUE.
 3. **Каскад Remnawave** — asks whether this machine is VPS A (Entry) or VPS B (Panel + Exit).
 
-The selected profile and its stage list are shown before confirmation. **Yes** starts it, **No** returns to the main menu, and **Exit** closes the installer. No system changes are made before the confirmation. Non-interactive no-argument execution remains check-only; explicit CLI commands continue to work as before.
+The selected profile and its stage list are shown before confirmation. **Yes** starts it, **No** returns to the main menu, and **Exit** closes the installer. No system changes are made before the confirmation. Required system preparation and eGamesAPI installation have their own confirmations and fail closed on refusal. Optional stages use a distinct skipped status. Non-interactive no-argument execution remains check-only; explicit CLI commands continue to work as before.
 
-The profiles intentionally reflect current implementation boundaries. The standard Remnawave profile runs preflight, backup, base-package preparation, the reviewed eGamesAPI/Remnawave hand-off and validation only. The extended profile adds the network adapter, MTProxyL, HAProxy integration and optional WARP/MASQUE. VPS A currently performs preflight, a local backup and base-package preparation only; it does not install/register the Remnawave Node or create its VLESS inbound. VPS B owns the Panel/Exit and MTProxyL/HAProxy path. Neither cascade profile automatically creates the live Shadowsocks inbound/outbound, service user/squad, routing rules or firewall allowlist.
+The profiles intentionally reflect current implementation boundaries. The standard Remnawave profile runs preflight, backup, required base-package preparation, pinned eGamesAPI installation and validation. eGamesAPI is pinned to commit `93e6631aae5f7bff28eadfc45faab43150cc22c6` (v3.8.4); the installer source and its bundled `src/` modules are checked out together. In eGamesAPI choose **1 → 1** to install Panel + Node on this host. Its combined mode also installs the subscription page and reverse-proxy components. **Important:** eGamesAPI itself says this combined Panel + Node mode is not recommended for production; it recommends separate Panel-only / Node-only modes. The extended profile adds the network adapter, optional MTProxyL, HAProxy integration and optional WARP/MASQUE. VPS A currently performs preflight, a local backup and base-package preparation only; it does not install/register the Remnawave Node or create its VLESS inbound. VPS B owns the Panel/Exit and optional MTProxyL/HAProxy path. Neither cascade profile automatically creates the live Shadowsocks inbound/outbound, service user/squad, routing rules or firewall allowlist.
 
 The repository stages are deliberately separated:
 
 1. **Preflight** — checks OS, configured domains, DNS and ports.
 2. **System** — after confirmation, installs base packages and creates state/log/backup directories.
-3. **eGamesAPI + Remnawave** — runs only a local reviewed installer supplied through `EGAMES_INSTALLER_LOCAL`. eGamesAPI is the installation entry point; do not install a second independent Remnawave stack.
+3. **eGamesAPI + Remnawave** — fetches a pinned eGamesAPI commit, validates the Git commit, script version and Bash syntax, then runs its interactive installer. For the standard/B-side single-host flow select menu item 1, then item 1. The stage fails unless both the Panel and local Node containers are running after the installer exits.
 4. **Network adapter** — reports the intended Xray loopback change and fallback expectations. It does not update a Remnawave profile.
 5. **MTProxyL** — runs only a local reviewed installer supplied through `MTPROXYL_INSTALLER_LOCAL`.
 6. **HAProxy** — integrates with an already active MTProxyL custom HAProxy config; it does not install MTProxyL or HAProxy.
@@ -186,14 +186,13 @@ sudo ./install.sh --run --stage warp-masque
 
 Available stages: `preflight`, `system`, `remnawave`, `adapter`, `mtproxyl`, `haproxy`, `validate`, `backup`, `warp-masque`.
 
-The eGamesAPI and MTProxyL stages only execute installers when the corresponding environment variable points to an existing local file. Review and pin those installer files yourself before setting the variables. For example:
+The eGamesAPI stage downloads only the pinned commit listed above; it does not follow a floating `main` branch for the installer or bundled modules. The optional MTProxyL stage still accepts a reviewed local installer:
 
 ```bash
-export EGAMES_INSTALLER_LOCAL=/root/installers/reviewed-egamesapi-installer.sh
 export MTPROXYL_INSTALLER_LOCAL=/root/installers/reviewed-mtproxyl-installer.sh
 ```
 
-The variables are hand-off paths, not downloads. Do not point them at unreviewed scripts.
+If MTProxyL, HAProxy integration or WARP/MASQUE is declined or unavailable, the stage is reported as **skipped**. A skipped optional stage is not reported as completed. Declining required system preparation or eGamesAPI installation stops the profile.
 
 ## A/B Shadowsocks bridge
 
