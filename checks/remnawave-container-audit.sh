@@ -27,10 +27,32 @@ for container in "${required_containers[@]}"; do
   info "Container image: $container ref=$image_ref image_id=$image_id repo_digests=${repo_digests:-unavailable}"
 done
 
+wait_for_healthy() {
+  local container="$1" attempt health
+  for attempt in {1..40}; do
+    health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container")" ||
+      die "Cannot inspect health status: $container"
+    case "$health" in
+      healthy)
+        info "Container health is healthy: $container"
+        return 0
+        ;;
+      unhealthy)
+        die "Container $container reported unhealthy."
+        ;;
+      starting)
+        sleep 3
+        ;;
+      *)
+        die "Container $container has no usable health check (health: $health)."
+        ;;
+    esac
+  done
+  die "Container $container did not become healthy within 120 seconds (last status: $health)."
+}
+
 for container in remnawave-db remnawave-redis remnawave; do
-  health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container")" ||
-    die "Cannot inspect health status: $container"
-  [[ "$health" == "healthy" ]] || die "Container $container is not healthy (health: $health)."
+  wait_for_healthy "$container"
 done
 
 info "All expected eGamesAPI Panel + Node containers are running; database, cache and Panel health checks are healthy."
