@@ -78,8 +78,14 @@ python3 "$ROOT/lib/haproxy_config.py" "$ROOT/tests/fixtures/haproxy.cfg" "$tmp_a
   --selfsteal-backend-host 127.0.0.1 --selfsteal-backend-port 15482 --selfsteal-port 8444
 grep -Fq 'http-request redirect scheme https code 301 if !acme' "$tmp_all"
 grep -Fq 'use_backend mtproxyl_acme if acme' "$tmp_all"
-! grep -Fq 'sd_http_redirect_hosts' "$tmp_all"
-! grep -Fq 'http-request deny deny_status 404 unless' "$tmp_all"
+if grep -Fq 'sd_http_redirect_hosts' "$tmp_all"; then
+  echo "Catch-all redirect unexpectedly generated a hostname allowlist" >&2
+  exit 1
+fi
+if grep -Fq 'http-request deny deny_status 404 unless' "$tmp_all"; then
+  echo "Catch-all redirect unexpectedly generated a Host deny rule" >&2
+  exit 1
+fi
 rm -f "$tmp_all"
 grep -Fq 'backend mtproxyl_acme' "$tmp"
 grep -Fq 'server acme 127.0.0.1:18080' "$tmp"
