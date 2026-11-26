@@ -2,7 +2,10 @@
 set -Eeuo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 tmp="$(mktemp -d)"
-trap 'rm -rf -- "$tmp"' EXIT
+cleanup() {
+  if [[ "$EUID" == 0 ]]; then rm -rf -- "$tmp"; else sudo -n rm -rf -- "$tmp"; fi
+}
+trap cleanup EXIT
 log_dir="$tmp/logs"
 
 run_as_root() {
@@ -19,6 +22,11 @@ run_as_root check
 [[ ! -e "$log_dir" ]] || { echo "Check-only unexpectedly created a log directory" >&2; exit 1; }
 
 run_as_root run
-[[ -d "$log_dir" ]]
-find "$log_dir" -maxdepth 1 -type f -name 'run-*.log' | grep -q .
+if [[ "$EUID" == 0 ]]; then
+  [[ -d "$log_dir" ]]
+  find "$log_dir" -maxdepth 1 -type f -name 'run-*.log' | grep -q .
+else
+  sudo -n test -d "$log_dir"
+  sudo -n find "$log_dir" -maxdepth 1 -type f -name 'run-*.log' | grep -q .
+fi
 echo "Common logging mode tests passed."
