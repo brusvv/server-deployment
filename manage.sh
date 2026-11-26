@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 ROOT_DIR="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 [[ "$EUID" == 0 ]] || { echo "Run as root: sudo ./manage.sh" >&2; exit 1; }
+export SD_MODE="${SD_MODE:-run}" SD_DRY_RUN="${SD_DRY_RUN:-0}"
 command -v python3 >/dev/null 2>&1 || { echo "python3 is required" >&2; exit 1; }
 while true; do
   printf '\n=== Server Deployment — управление ===\n'
