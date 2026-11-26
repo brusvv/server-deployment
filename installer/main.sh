@@ -35,11 +35,16 @@ while true; do
   fi
 done
 
+if [[ "${EUID:-$(id -u)}" != 0 ]]; then
+  printf 'ERROR: run the installer as root (sudo ./install.sh).\n' >&2
+  exit 1
+fi
+
 printf '\nЗапуск профиля: %s\n' "$PROFILE_ID"
 printf 'До подтверждения система не изменялась.\n\n'
 
 for stage in "${PROFILE_STAGES[@]}"; do
-  printf '\n========== %s ==========%s' "$stage" $'\n'
+  printf '\n========== %s ==========\n' "$stage"
   bash "$ROOT_DIR/install.sh" --run --stage "$stage"
 done
 
