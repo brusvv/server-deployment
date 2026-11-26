@@ -40,7 +40,7 @@ The suite covers:
   - Declining profile confirmation returns to the menu without running stages.
 - Check-only/dry-run logging contract: `--check` and dry-run do not create log directories/files; a normal run creates a protected log.
 - Bridge-settings wizard is exercised in normal and `--dry-run` modes; the test stubs Python to prove the writer uses only the base shell utilities.
-- Backup-stage dry-run reports the planned paths without creating a backup directory or archive.
+- Backup-stage dry-run reports the planned paths without creating a backup directory or archive.\n- Backup create/restore integration test creates two backups in the same second, verifies unique archive names, restores a known file and checks that a pre-restore backup is created.\n- Backup archive unit tests reject traversal, out-of-scope paths, unsafe symlink targets, writes through archive symlinks and hard links.
 
 These tests do not execute privileged package installation or the external eGamesAPI installer.
 
@@ -94,17 +94,17 @@ Use disposable Debian/Ubuntu VMs, not production VPS A/B. Take provider snapshot
 | Invocation | Expected behavior |
 |---|---|
 | `bash <(curl .../install.sh)` with no arguments and a TTY | Clone the requested ref, then open the profile menu |
-| `SD_GIT_REF=feature/remnawave-fingerprint-hardening bash <(curl .../install.sh)` | Bootstrap this feature branch; refuse to silently switch an existing checkout on another branch |
+| `SD_GIT_REF=feature/remnawave-fingerprint-hardening bash <(curl .../install.sh)` | Bootstrap this feature branch; fast-forward a clean existing checkout, refuse dirty/diverged checkouts and branch mismatches |
 | `sudo ./install.sh` with a TTY | Open the profile menu |
 | `sudo ./install.sh` without a TTY | Check-only preflight; no install |
 | `sudo ./install.sh --check` | Read-only preflight; no package/service/config changes and no log-file creation |
 | `sudo ./install.sh --configure-bridge` | Change only local bridge settings after confirmation; no live bridge mutation |
 | `sudo ./install.sh --dry-run --configure-bridge` | Show the bridge choices but do not write the local config or create a backup |
 | `sudo ./install.sh --run --dry-run --stage backup` | Report which paths would be backed up; do not create an archive |
-| `sudo ./install.sh --run --stage NAME` | Execute exactly one named stage with its own confirmation/safety gates |
+| `sudo ./install.sh --run --stage NAME` | Execute exactly one named stage with its own confirmation/safety gates |\n| `sudo ./install.sh backup create\|list\|restore ARCHIVE` | Run an explicit backup operation; restore validates the archive and creates a pre-restore backup |
 | `sudo ./install.sh --run` | Legacy all-stage flow with the bridge-settings prompt; not the profile menu |
 
-Test bootstrap against a fresh directory, an existing checkout on the requested branch, an existing checkout on a different branch and a non-repository path at `SD_INSTALL_DIR`.
+Test bootstrap against a fresh directory, an existing clean checkout behind the requested remote branch, an existing checkout with local modifications, a checkout on a different branch, a diverged history and a non-repository path at `SD_INSTALL_DIR`.
 
 ## 5. Stop conditions
 
