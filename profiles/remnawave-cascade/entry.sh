@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2034
 # VPS A is the Russian client-facing Entry.
 PROFILE_ID="remnawave-cascade-entry"
 PROFILE_TITLE="Каскад Remnawave — VPS A / Entry"
