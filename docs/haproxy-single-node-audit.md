@@ -77,8 +77,27 @@ ps -eo pid,comm,args |
   grep -Ei '[h]aproxy|[t]elemt|[e]dgeguard|[m]tproxy' || true
 
 cd /opt/server-deployment
-sudo ./install.sh --check --stage network-adapter
+sudo ./install.sh --check --stage adapter
 ```
+
+The operator ran the command with `--stage network-adapter` and received `Unknown stage: network-adapter`. This is a CLI naming mismatch, not evidence that the adapter module is broken: the stage identifier exposed by the installer is `adapter` (the implementation file is named `03-network-adapter.sh`). Use `--stage adapter` in subsequent checks.
+
+## Additional VM findings (2026-11-26 23:35 UTC)
+
+The follow-up read-only checks returned:
+
+- `/opt/mtproxyl` — missing.
+- `/opt/mtproxyl-haproxy` — missing.
+- `/opt/remnawave` and `/var/lib/server-deployment` — present.
+- No matching installed systemd unit files for HAProxy, MTProxyL, Telemt or EdgeGuard.
+- No matching running processes for HAProxy, Telemt, EdgeGuard or MTProxyL.
+- The attempted stage check using the non-existent name `network-adapter` returned `[ERROR] Unknown stage: network-adapter`.
+
+This confirms that the expected MTProxyL-managed HAProxy installation is not present in its configured directories and is not registered under the searched unit/process names. It does not prove that no related files exist elsewhere on the host.
+
+### Installer correction candidate
+
+The operator-facing CLI documentation and examples should consistently call this stage `adapter`, while the script filename may remain `03-network-adapter.sh`. Add a regression test that invokes `--check --stage adapter` and verifies the guided, non-mutating output. Consider improving the unknown-stage error to list valid stage identifiers so filename-based guesses such as `network-adapter` are easier to diagnose.
 
 Review the output before deciding between:
 
