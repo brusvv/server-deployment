@@ -2,7 +2,8 @@
 set -Eeuo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 tmp="$(mktemp -d)"
-trap 'rm -rf -- "$tmp"' EXIT
+cleanup() { if [[ "$EUID" == 0 ]]; then rm -rf -- "$tmp"; else sudo -n rm -rf -- "$tmp"; fi; }
+trap cleanup EXIT
 fixture="$tmp/repo"
 log_dir="$tmp/logs"
 mkdir -p "$fixture/lib" "$fixture/config" "$fixture/modules"
