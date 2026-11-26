@@ -15,7 +15,7 @@ run_as_root() {
     env SD_ROOT="$ROOT" SD_LOG_DIR="$log_dir" SD_MODE="$mode" SD_DRY_RUN="$dry_run" bash -c 'source "$SD_ROOT/lib/common.sh"; init_logging'
   else
     # shellcheck disable=SC2016 # Expand SD_ROOT in the child shell, not this one.
-    sudo -n env SD_ROOT="$ROOT" SD_LOG_DIR="$log_dir" SD_MODE="$1" bash -c 'source "$SD_ROOT/lib/common.sh"; init_logging'
+    sudo -n env SD_ROOT="$ROOT" SD_LOG_DIR="$log_dir" SD_MODE="$mode" SD_DRY_RUN="$dry_run" bash -c 'source "$SD_ROOT/lib/common.sh"; init_logging'
   fi
 }
 
