@@ -126,17 +126,17 @@ This is a successful non-mutating stage check, not evidence that the Xray listen
 
 ### eGames website template conflict — operator report
 
-The operator reports that after installing eGames, the website displays/uses the eGames-provided template instead of the project's games template.
+The operator reports that after installing eGames, the website displays the eGames-provided template instead of the project's games template.
 
-This is currently an operator-observed symptom; the exact installer action, target directory and overwrite mechanism have not yet been established. Do not assume whether this is intentional eGames behavior, a template-selection error, or an overwrite of the project's site assets.
+The operator clarified the intended design: installing the eGames-provided template may be a required/base installation step, but a project-owned post-install function should then transform/customize that installed template into the project's games website. Therefore, do not treat this as a simple requirement to skip eGames template installation or merely preserve existing files. The expected flow is an ordered post-install customization step.
 
-#### Required investigation and acceptance checks
+The exact mechanism and current hook point have not yet been established. Treat the following as the implementation target to verify against the repository and upstream eGames layout:
 
-1. Trace the eGames installation path and identify every step that downloads, copies, extracts, symlinks, or changes ownership/permissions of website/template assets.
-2. Identify the configured website document root and the exact source/destination paths for both the eGames template and the project's games template.
-3. Determine whether eGames should install only its API/reverse-proxy integration while preserving the project's games site, or whether the user must explicitly choose a site template.
-4. Make template selection explicit and non-destructive. Never silently replace the games template with an eGames template.
-5. Add a post-install check that verifies the expected games-template marker/assets remain present and that the served document root points to the intended template.
-6. Test fresh installation and installation over an existing games site; verify idempotency and rollback behavior.
+1. Trace the eGames installation path and identify the template source, destination/document root, and the point at which eGames finishes writing its default template.
+2. Locate any existing project function, patcher, asset overlay, or post-install hook intended to customize the eGames template into the games website.
+3. Ensure the customization runs after eGames has completed template installation and before the installer reports success.
+4. Make the transformation repeatable (idempotent), scoped to known files/assets, and safe against upstream template changes. Avoid blind recursive copying or destructive replacement.
+5. Add a post-install verification that checks the expected games-page assets/content and confirms the active document root serves the customized template, not the untouched eGames default.
+6. Test both a fresh install and a rerun/update path; verify failure is visible and does not leave the installer claiming success with the wrong site.
 
-No corrective code change has been made yet because the responsible eGames install path and intended template ownership need to be traced first.
+No corrective code change has been made yet; first trace the actual installer and identify the intended transformation function/hook.
