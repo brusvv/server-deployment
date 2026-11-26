@@ -333,6 +333,7 @@ The manager supports:
 - Routing policy: outbound only, unmatched traffic, or selected domains.
 - Switching between HTTP/2 (`h2`) and HTTP/3 (`h3`).
 - Status and endpoint probe.
+- Read-only Config Profile inspection that reports structure without printing private keys or raw configuration values.
 
 Important limitations and safeguards:
 
