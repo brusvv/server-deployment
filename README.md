@@ -227,3 +227,21 @@ VLESS Route is intentionally deferred. Do not configure the VLESS Route bridge d
 - Check-only and non-interactive runs never prompt; they use the saved settings.
 
 The wizard updates only the local `config/ports.env` file and creates a timestamped backup. On VPS B, the eGamesAPI adapter reads those settings at runtime: it blocks Geo Bridge setup/attachment while disabled, forces the configured port, and pins the Geo Bridge routing mode to `direct`. Run `checks/egamesapi-bridge-adapters.sh --check` with the module and config paths before applying; `--apply` installs both guarded patches in order. Actual Remnawave inbound, service user/squad, Entry outbound/routing and source-restricted firewall operations still run through the eGamesAPI Server Routing workflow with explicit confirmation; see [the cascade plan](docs/remnawave-cascade-bridge-plan.md).
+
+
+## Optional Cloudflare WARP over Xray MASQUE
+
+WARP/MASQUE is an optional Xray outbound, independent of HAProxy, MTProxyL and the A-to-B Shadowsocks bridge.
+
+- The installation flow asks whether to configure WARP MASQUE; the default is No.
+- Run sudo ./manage.sh later to register or re-register a WARP MASQUE device, add or remove the outbound in a selected Remnawave Config Profile, choose routing policy, or switch HTTP/2 and HTTP/3.
+- HTTP/2 over TCP/443 is the default. HTTP/3 requires outbound UDP/443.
+- The manager requires Xray-core 26.10.31 or newer and checks the installed local/Remnawave Node binary before applying a profile.
+- Routing defaults to outbound only: adding the outbound does not redirect user traffic. The operator can explicitly choose unmatched traffic or a list of domains.
+- Before each Config Profile update, the full profile is saved under the configured WARP backup directory. The manager updates the complete config object through the Remnawave API and verifies the result.
+- API credentials and WARP private keys are stored outside the repository with mode 0600; no credentials belong in tracked files.
+- The consumer registration endpoint is undocumented/reverse-engineered and may change. Registration requires an explicit typed acknowledgement of Cloudflare's Terms of Service. Re-registering creates a new device; it does not automatically revoke an old Cloudflare registration.
+- The manager refuses to overwrite an existing warp-masque outbound or remove profile rules it cannot prove it owns.
+
+Copy config/warp-masque.env.example to config/warp-masque.env to override defaults. No WARP registration or Remnawave profile mutation occurs in check-only mode.
+

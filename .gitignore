@@ -9,3 +9,6 @@ config/secrets.env
 # Python compile/test artifacts
 __pycache__/
 *.py[cod]
+
+# Local WARP/MASQUE settings
+config/warp-masque.env
