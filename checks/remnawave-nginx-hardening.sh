@@ -65,7 +65,7 @@ for raw in Path(sys.argv[1]).read_text(encoding="utf-8").splitlines():
             break
         clean.append(char)
     statement = "".join(clean)
-    match = re.match(r"^\\s*server_tokens\\s+(\\S+)\\s*;", statement)
+    match = re.match(r"^\s*server_tokens\s+(\S+)\s*;", statement)
     if match:
         if match.group(1) != "off":
             invalid += 1
