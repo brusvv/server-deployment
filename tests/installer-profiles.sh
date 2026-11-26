@@ -35,6 +35,8 @@ grep -q 'PROFILE_OPTIONAL_STAGES' "$ROOT/installer/main.sh"
 grep -q 'XRAY_LISTENER_REQUIRED="1"' "$ROOT/config/services.env"
 grep -q 'check_backend_listener "Xray"' "$ROOT/modules/05-haproxy.sh"
 grep -q 'exit 10' "$ROOT/modules/05-haproxy.sh"
+grep -A 5 -F 'if (( READY == 0 )); then' "$ROOT/modules/05-haproxy.sh" | grep -q 'exit 10'
+grep -A 4 -F 'confirm_tty "Apply the selected port layout' "$ROOT/modules/05-haproxy.sh" | grep -q 'exit 10'
 grep -q 'selected Remnawave Config Profile' "$ROOT/modules/03-network-adapter.sh"
 
 printf 'Installer profile tests passed.\n'
