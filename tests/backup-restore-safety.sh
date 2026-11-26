@@ -76,4 +76,19 @@ if run_backup create >"$tmp/root-backup.out" 2>&1; then
 fi
 grep -q "absolute non-root path" "$tmp/root-backup.out"
 
+mkdir -p "$tmp/backups-target"
+ln -s "$tmp/backups-target" "$tmp/backups-link"
+cat > "$fixture/config/services.env" <<EOF
+REMNAWAVE_DIR="$tmp/remnawave"
+MTProxyL_DIR="$tmp/mtproxyl"
+HAPROXY_CONFIG="$tmp/mtproxyl/haproxy.cfg"
+BACKUP_DIR="$tmp/backups-link"
+STATE_DIR="$tmp/state"
+EOF
+if run_backup create >"$tmp/symlink-backup.out" 2>&1; then
+  echo "Symlinked BACKUP_DIR was unexpectedly accepted" >&2
+  exit 1
+fi
+grep -q "BACKUP_DIR must not be a symlink" "$tmp/symlink-backup.out"
+
 echo "Backup create/restore tests passed."
