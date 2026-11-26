@@ -32,7 +32,7 @@ The interactive installer exposes three top-level choices:
 
 These stage maps describe the current repository capabilities, not a claim that every step fully provisions a production topology.
 
-- eGamesAPI and MTProxyL are invoked only through operator-supplied, reviewed local installer files.
+- eGamesAPI is fetched at a pinned commit (`93e6631aae5f7bff28eadfc45faab43150cc22c6`, v3.8.4), checked out and syntax-validated before its interactive installer is launched. MTProxyL remains an operator-supplied, reviewed local installer.
 - The network adapter stage documents/checks the intended Xray listener arrangement; it does not mutate a Remnawave Config Profile.
 - The HAProxy stage modifies an existing MTProxyL-managed custom config; it is not a standalone HAProxy installer.
 - Cascade profiles do not create the live Shadowsocks inbound/outbound, service user/squad, routing rules or firewall rules. Those remain in the eGamesAPI Server Routing workflow.
@@ -54,7 +54,7 @@ When install.sh is invoked without arguments from an interactive terminal:
    - **Exit** — terminate the installer and return to the shell.
 5. Only after confirmation, run the declared stages in order.
 
-Invalid input and EOF must never start a stage. A failed stage stops the profile; later stages do not run.
+Invalid input and EOF must never start a stage. A failed required stage stops the profile; later stages do not run. Optional stages return a dedicated skipped status, which the dispatcher records without describing the skipped component as installed. Only stages declared optional by the selected profile may be skipped.
 
 Non-interactive no-argument invocation retains check-only behavior. Explicit CLI commands (--check, --run, --stage) remain available and do not open the menu.
 
@@ -62,7 +62,9 @@ Non-interactive no-argument invocation retains check-only behavior. Explicit CLI
 
 - Menu rendering and selection are read-only.
 - No package installation, service action, firewall mutation, Remnawave API call or filesystem mutation occurs before confirmation.
-- Existing per-stage confirmations remain in force.
+- Required system preparation and eGamesAPI installation fail closed when declined.
+- The eGamesAPI Panel + Node combined mode is explicitly warned as not recommended for production by its upstream documentation.
+- Existing optional-component confirmations remain in force; an opt-out is recorded as skipped.
 - Check-only and dry-run behavior remain non-mutating.
 - A role-specific profile must never execute the other role's stages.
 - No profile may claim a complete cascade until cross-node provisioning, source-restricted firewall configuration and end-to-end routing validation are implemented and tested.
@@ -99,3 +101,38 @@ modules/
 ```
 
 Do not move existing modules merely to match this layout; perform such refactoring separately with regression coverage.
+
+
+## eGamesAPI execution contract
+
+The Remnawave stage pins eGamesAPI v3.8.4 to commit
+`93e6631aae5f7bff28eadfc45faab43150cc22c6`. It fetches that exact Git commit,
+checks out the complete repository (including its local `src/` modules), verifies
+the commit ID, expected script version and Bash syntax, and only then launches
+the interactive installer. This avoids running a floating installer from
+`main` and lets the upstream script resolve its bundled modules from the pinned
+checkout.
+
+For the single-host standard and B-side profiles, the operator must select
+`Install Remnawave Components → Install panel and node on one server` (menu
+choices `1 → 1`). The stage then verifies that both `remnawave` and
+`remnanode` containers are running. An installer exit code of zero alone is
+not treated as proof of installation.
+
+Upstream eGamesAPI documentation explicitly says the combined Panel + Node
+mode is not recommended for production and recommends separate Panel-only /
+Node-only modes. The installer shows this warning and requires an additional
+confirmation. The combined flow also installs the subscription page and
+reverse-proxy components. Review the upstream warning before using this profile
+for a production deployment.
+
+## Stage result contract
+
+- `0`: completed successfully.
+- `10`: skipped; accepted only for a stage listed in
+  `PROFILE_OPTIONAL_STAGES`.
+- Any other non-zero status: failure; abort the profile.
+
+The standard profile has no optional stages. The extended and B-side profiles
+currently mark MTProxyL, HAProxy integration and WARP/MASQUE as optional. The
+system preparation and eGamesAPI stages are mandatory and abort on refusal.
