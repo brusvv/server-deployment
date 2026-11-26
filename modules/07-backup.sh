@@ -5,6 +5,7 @@ source "$SD_ROOT/lib/config.sh"
 # shellcheck disable=SC1090
 load_config
 require_root
+LAST_BACKUP=""
 
 create_backup() {
   local prefix="${1:-server-deployment}" stamp tmp suffix archive path relative existing covered
@@ -50,6 +51,7 @@ create_backup() {
     die "Refusing to overwrite existing backup: $archive"
   fi
   rm -f -- "$tmp"
+  LAST_BACKUP="$archive"
   info "Backup created: $archive"
 }
 
@@ -59,7 +61,7 @@ list_backups() {
 }
 
 restore_backup() {
-  local archive="${1:-}" safe_archive
+  local archive="${1:-}" safe_archive pre_restore_backup
   [[ -n "$archive" && -f "$archive" && ! -L "$archive" ]] || die "Usage: $0 restore /path/to/archive.tar.gz"
   local -a allowed_roots=()
   allowed_roots=("$REMNAWAVE_DIR" "${MTProxyL_DIR:-/opt/mtproxyl}" "$HAPROXY_CONFIG" "$SD_ROOT/config")
@@ -76,7 +78,12 @@ restore_backup() {
 
   info "Creating a pre-restore safety backup."
   create_backup "pre-restore"
-  tar --numeric-owner -xzf "$safe_archive" -C /
+  pre_restore_backup="$LAST_BACKUP"
+  if ! tar --numeric-owner -xzf "$safe_archive" -C /; then
+    err "Restore extraction failed. The pre-restore backup is retained at: $pre_restore_backup"
+    err "The live filesystem may be partially restored; manual recovery from the pre-restore archive is required."
+    exit 1
+  fi
   info "Restore completed from: $archive"
 }
 
