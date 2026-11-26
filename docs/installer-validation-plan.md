@@ -38,9 +38,10 @@ The suite covers:
   - Cascade B selects the Panel + Exit sequence and reports optional skips.
   - A mandatory stage failure stops the profile immediately.
   - Declining profile confirmation returns to the menu without running stages.
-- Check-only/dry-run logging contract: `--check` and dry-run do not create log directories/files; a normal run creates a protected log.
+- Check-only/dry-run logging contract: `--check` and dry-run do not create log directories/files; consecutive stage invocations create separate protected logs even within one second.
+- Preflight port validation rejects malformed/out-of-range public ports, duplicate HTTP/HTTPS ports and bridge/public-port collisions. If `ss` is unavailable before the System stage installs `iproute2`, preflight reports that occupancy checks were skipped rather than claiming ports are free.
 - Bridge-settings wizard is exercised in normal and `--dry-run` modes; the test stubs Python to prove the writer uses only the base shell utilities.
-- Backup-stage dry-run reports the planned paths without creating a backup directory or archive.\n- Backup create/restore integration test creates two backups in the same second, verifies unique archive names, restores a known file and checks that a pre-restore backup is created.\n- Backup archive unit tests reject traversal, out-of-scope paths, unsafe symlink targets, writes through archive symlinks and hard links.
+- Backup-stage dry-run reports the planned paths without creating a backup directory or archive.
 
 These tests do not execute privileged package installation or the external eGamesAPI installer.
 
@@ -52,7 +53,7 @@ Use disposable Debian/Ubuntu VMs, not production VPS A/B. Take provider snapshot
 
 1. Bootstrap the exact feature branch and verify the checkout ref.
 2. Create a host-specific `config/domains.env`; run `sudo ./install.sh --check`.
-3. Confirm preflight rejects unsupported OS, malformed/duplicate domains and invalid bridge settings; DNS/occupied public ports are currently reported as warnings and need operator review.
+3. Confirm preflight rejects unsupported OS, malformed/duplicate domains, invalid bridge settings and malformed/out-of-range/duplicate public ports; DNS/occupied public ports are reported as warnings and need operator review. If `ss` is unavailable on a minimal image, confirm preflight explicitly skips socket occupancy checks and System later installs `iproute2`.
 4. Confirm the backup stage archives existing configured paths and local config before system preparation.
 5. Confirm the system stage asks before installing packages and creates protected state/log/backup directories.
 6. Confirm eGamesAPI consent is required; test refusal and verify the profile stops.
@@ -94,17 +95,17 @@ Use disposable Debian/Ubuntu VMs, not production VPS A/B. Take provider snapshot
 | Invocation | Expected behavior |
 |---|---|
 | `bash <(curl .../install.sh)` with no arguments and a TTY | Clone the requested ref, then open the profile menu |
-| `SD_GIT_REF=feature/remnawave-fingerprint-hardening bash <(curl .../install.sh)` | Bootstrap this feature branch; fast-forward a clean existing checkout, refuse dirty/diverged checkouts and branch mismatches |
+| `SD_GIT_REF=feature/remnawave-fingerprint-hardening bash <(curl .../install.sh)` | Bootstrap this feature branch; refuse to silently switch an existing checkout on another branch |
 | `sudo ./install.sh` with a TTY | Open the profile menu |
 | `sudo ./install.sh` without a TTY | Check-only preflight; no install |
 | `sudo ./install.sh --check` | Read-only preflight; no package/service/config changes and no log-file creation |
 | `sudo ./install.sh --configure-bridge` | Change only local bridge settings after confirmation; no live bridge mutation |
 | `sudo ./install.sh --dry-run --configure-bridge` | Show the bridge choices but do not write the local config or create a backup |
 | `sudo ./install.sh --run --dry-run --stage backup` | Report which paths would be backed up; do not create an archive |
-| `sudo ./install.sh --run --stage NAME` | Execute exactly one named stage with its own confirmation/safety gates |\n| `sudo ./install.sh backup create\|list\|restore ARCHIVE` | Run an explicit backup operation; restore validates the archive and creates a pre-restore backup |
+| `sudo ./install.sh --run --stage NAME` | Execute exactly one named stage with its own confirmation/safety gates |
 | `sudo ./install.sh --run` | Legacy all-stage flow with the bridge-settings prompt; not the profile menu |
 
-Test bootstrap against a fresh directory, an existing clean checkout behind the requested remote branch, an existing checkout with local modifications, a checkout on a different branch, a diverged history and a non-repository path at `SD_INSTALL_DIR`.
+Test bootstrap against a fresh directory, an existing checkout on the requested branch, an existing checkout on a different branch and a non-repository path at `SD_INSTALL_DIR`.
 
 ## 5. Stop conditions
 
