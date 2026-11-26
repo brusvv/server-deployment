@@ -27,7 +27,7 @@ installer_menu_select_profile() {
     choice="$(installer_menu_read 'Выберите сценарий [1/2/0]: ')" || return 2
     case "$choice" in
       1)
-        INSTALL_PROFILE_FILE="$SD_ROOT/profiles/single-server/profile.sh"
+        export INSTALL_PROFILE_FILE="$SD_ROOT/profiles/single-server/profile.sh"
         return 0
         ;;
       2)
@@ -39,11 +39,11 @@ installer_menu_select_profile() {
           role="$(installer_menu_read 'Выберите роль [1/2/0]: ')" || return 2
           case "$role" in
             1)
-              INSTALL_PROFILE_FILE="$SD_ROOT/profiles/remnawave-cascade/entry.sh"
+              export INSTALL_PROFILE_FILE="$SD_ROOT/profiles/remnawave-cascade/entry.sh"
               return 0
               ;;
             2)
-              INSTALL_PROFILE_FILE="$SD_ROOT/profiles/remnawave-cascade/exit-panel.sh"
+              export INSTALL_PROFILE_FILE="$SD_ROOT/profiles/remnawave-cascade/exit-panel.sh"
               return 0
               ;;
             0) break ;;
