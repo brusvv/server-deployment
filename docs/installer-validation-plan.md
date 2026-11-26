@@ -29,7 +29,9 @@ The suite covers:
 
 - Bash syntax and ShellCheck for shell scripts.
 - Config parsing and port discovery.
-- eGamesAPI compatibility adapters and their idempotence.\n- eGamesAPI container audit: all expected containers must run, DB/Redis/Panel health must settle to healthy, and image refs/IDs/digests are recorded.\n- MTProxyL local installer path, symlink and Bash syntax guards.
+- eGamesAPI compatibility adapters and their idempotence.
+- eGamesAPI container audit: all expected containers must run, DB/Redis/Panel health must settle to healthy, and image refs/IDs/digests are recorded.
+- MTProxyL local installer path, symlink and Bash syntax guards.
 - Nginx hardening helper behavior, including backup, validation, rollback guards and nested directive handling.
 - Installer menu/dispatcher integration using a pseudo-terminal and a fake stage runner:
   - Standard profile completes its required stage sequence.
