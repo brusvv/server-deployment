@@ -29,7 +29,7 @@ done
 
 wait_for_healthy() {
   local container="$1" attempt health
-  for attempt in {1..40}; do
+  for _ in {1..40}; do
     health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container")" ||
       die "Cannot inspect health status: $container"
     case "$health" in
