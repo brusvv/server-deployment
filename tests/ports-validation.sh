@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
+tmp="$(mktemp -d)"
+trap 'rm -rf -- "$tmp"' EXIT
+mkdir -p "$tmp/bin"
+cat > "$tmp/bin/ss" <<'SS'
+#!/usr/bin/env bash
+# Empty listener inventory for deterministic preflight tests.
+exit 0
+SS
+chmod +x "$tmp/bin/ss"
+
+run_ports() {
+  env PATH="$tmp/bin:$PATH" SD_ROOT="$ROOT" \
+    PUBLIC_HTTP_PORT="${1:-80}" PUBLIC_HTTPS_PORT="${2:-443}" \
+    SS_BRIDGE_ENABLED="${3:-0}" SS_BRIDGE_PORT="${4:-9999}" \
+    bash "$ROOT/checks/ports.sh"
+}
+
+run_ports 80 443 0 9999 >/dev/null
+run_ports 080 0443 0 9999 >/dev/null
+run_ports 80 443 1 9999 >/dev/null
+
+expect_failure() {
+  local label="$1"; shift
+  if run_ports "$@" >"$tmp/out" 2>&1; then
+    echo "$label unexpectedly passed" >&2
+    exit 1
+  fi
+}
+expect_failure "Non-numeric public HTTP port" abc 443 0 9999
+expect_failure "Out-of-range public HTTPS port" 80 65536 0 9999
+expect_failure "Zero public HTTP port" 0 443 0 9999
+expect_failure "Duplicate public ports" 443 443 0 9999
+expect_failure "Bridge/public port collision" 80 443 1 443
+expect_failure "Non-numeric bridge port" 80 443 1 abc
+
+echo "Public and bridge port validation tests passed."
