@@ -57,28 +57,16 @@ persist_bridge_settings(){
  local file="$SD_ROOT/config/ports.env" tmp backup
  [[ -f "$file" && ! -L "$file" ]] || die "Expected a regular config file: $file"
  tmp="$(mktemp "${file}.tmp.XXXXXX")"
- python3 - "$file" "$tmp" "$1" "$2" <<'PY'
-import sys
-from pathlib import Path
-source, target, enabled, port = sys.argv[1:]
-lines = Path(source).read_text(encoding="utf-8").splitlines()
-out = []
-seen_enabled = seen_port = False
-for line in lines:
-    if line.startswith("SS_BRIDGE_ENABLED="):
-        out.append(f'SS_BRIDGE_ENABLED="{enabled}"')
-        seen_enabled = True
-    elif line.startswith("SS_BRIDGE_PORT="):
-        out.append(f'SS_BRIDGE_PORT="{port}"')
-        seen_port = True
-    else:
-        out.append(line)
-if not seen_enabled:
-    out.append(f'SS_BRIDGE_ENABLED="{enabled}"')
-if not seen_port:
-    out.append(f'SS_BRIDGE_PORT="{port}"')
-Path(target).write_text("\n".join(out) + "\n", encoding="utf-8")
-PY
+ awk -v enabled="$1" -v port="$2" '
+  BEGIN { seen_enabled = 0; seen_port = 0 }
+  /^SS_BRIDGE_ENABLED=/ { printf "SS_BRIDGE_ENABLED=\\"%s\\"\\n", enabled; seen_enabled = 1; next }
+  /^SS_BRIDGE_PORT=/ { printf "SS_BRIDGE_PORT=\\"%s\\"\\n", port; seen_port = 1; next }
+  { print }
+  END {
+   if (!seen_enabled) printf "SS_BRIDGE_ENABLED=\\"%s\\"\\n", enabled
+   if (!seen_port) printf "SS_BRIDGE_PORT=\\"%s\\"\\n", port
+  }
+ ' "$file" > "$tmp"
  chmod --reference="$file" "$tmp"
  if cmp -s "$file" "$tmp"; then
   rm -f "$tmp"
