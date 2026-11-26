@@ -61,8 +61,38 @@ printf 'Checking the exact local-Exit compatibility context...\n'
 python3 "$LOCAL_PATCH" --check "$MODULE"
 
 tmp_dir="$(mktemp -d)"
-trap 'rm -rf -- "$tmp_dir"' EXIT
 tmp_module="$tmp_dir/server_routing.sh"
+original_module="$tmp_dir/server_routing.original.sh"
+rollback_required=0
+
+restore_original_module() {
+  local restore_tmp
+  restore_tmp="$(mktemp "${MODULE}.rollback.XXXXXX")" || return 1
+  if ! cp -p -- "$original_module" "$restore_tmp"; then
+    rm -f -- "$restore_tmp"
+    return 1
+  fi
+  if ! mv -f -- "$restore_tmp" "$MODULE"; then
+    rm -f -- "$restore_tmp"
+    return 1
+  fi
+  printf 'ROLLBACK: original eGamesAPI module restored from the transaction snapshot.\n' >&2
+}
+
+on_exit() {
+  local status=$?
+  trap - EXIT
+  if (( status != 0 && rollback_required == 1 )); then
+    if ! restore_original_module; then
+      printf 'CRITICAL: automatic rollback failed; restore the original module from %s manually.\n' "$original_module" >&2
+      printf 'The transaction snapshot is being retained at: %s\n' "$original_module" >&2
+      exit 90
+    fi
+  fi
+  rm -rf -- "$tmp_dir"
+  exit "$status"
+}
+trap on_exit EXIT
 cp -p -- "$MODULE" "$tmp_module"
 
 # Simulate the first patch on an isolated copy. This validates the second
@@ -83,6 +113,9 @@ read -r -p "Type APPLY to back up and patch the installed eGamesAPI module: " an
   exit 0
 }
 
+cp -p -- "$MODULE" "$original_module"
+rollback_required=1
+
 printf 'Applying local-Exit compatibility patch...\n'
 printf 'APPLY\n' | python3 "$LOCAL_PATCH" --apply "$MODULE"
 
@@ -93,4 +126,5 @@ printf 'Verifying the resulting module...\n'
 python3 "$LOCAL_PATCH" --check "$MODULE"
 python3 "$BRIDGE_PATCH" --check --config-file "$CONFIG_FILE" "$MODULE"
 
+rollback_required=0
 printf 'DONE: both guarded adapters are installed. No Remnawave API object, Node, profile, inbound, user, squad, firewall rule or service was changed.\n'
