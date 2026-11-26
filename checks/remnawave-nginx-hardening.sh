@@ -28,13 +28,79 @@ done
 command -v docker >/dev/null 2>&1 || die "Docker CLI is required."
 docker ps --format '{{.Names}}' | grep -Fxq "$CONTAINER" || die "Nginx container '$CONTAINER' is not running."
 
-count="$(grep -Ec '^[[:space:]]*server_tokens[[:space:]]+' "$CONFIG_FILE" || true)"
-if (( count > 1 )); then
-  die "Multiple server_tokens directives found in $CONFIG_FILE; refusing an ambiguous edit."
+# Determine whether the directive is already set at the snippet's top level.
+# Nested server-level overrides are not a substitute for the global http-context setting.
+read -r top_level_count invalid_count < <(python3 - "$CONFIG_FILE" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+depth = 0
+top_level = 0
+invalid = 0
+for raw in Path(sys.argv[1]).read_text(encoding="utf-8").splitlines():
+    line = raw
+    quote = None
+    escaped = False
+    clean = []
+    for char in line:
+        if escaped:
+            clean.append(char)
+            escaped = False
+            continue
+        if char == "\\" and quote:
+            clean.append(char)
+            escaped = True
+            continue
+        if quote:
+            clean.append(char)
+            if char == quote:
+                quote = None
+            continue
+        if char in ("'", '"'):
+            quote = char
+            clean.append(char)
+            continue
+        if char == "#":
+            break
+        clean.append(char)
+    statement = "".join(clean)
+    match = re.match(r"^\\s*server_tokens\\s+(\\S+)\\s*;", statement)
+    if match:
+        if match.group(1) != "off":
+            invalid += 1
+        if depth == 0:
+            top_level += 1
+    # Count braces outside quoted strings/comments to track Nginx context.
+    quote = None
+    escaped = False
+    for char in statement:
+        if escaped:
+            escaped = False
+            continue
+        if char == "\\" and quote:
+            escaped = True
+            continue
+        if quote:
+            if char == quote:
+                quote = None
+            continue
+        if char in ("'", '"'):
+            quote = char
+        elif char == "{":
+            depth += 1
+        elif char == "}":
+            depth = max(0, depth - 1)
+print(top_level, invalid)
+PY
+)
+if (( invalid > 0 )); then
+  die "A non-off server_tokens directive exists in $CONFIG_FILE; review the config manually."
 fi
-if (( count == 1 )); then
-  grep -Eq '^[[:space:]]*server_tokens[[:space:]]+off[[:space:]]*;' "$CONFIG_FILE" ||
-    die "A server_tokens directive exists but is not exactly 'off'; review the config manually."
+if (( top_level > 1 )); then
+  die "Multiple top-level server_tokens directives found in $CONFIG_FILE; refusing an ambiguous edit."
+fi
+if (( top_level == 1 )); then
   configured=1
 else
   configured=0
