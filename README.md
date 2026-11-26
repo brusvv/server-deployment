@@ -302,8 +302,8 @@ If a backend is not ready, Xray is not listening on the configured loopback endp
 
 Redirects are opt-in through `HTTP_REDIRECT_DOMAINS` in `config/domains.env`:
 
-- Only explicitly listed Host values receive same-host HTTP → HTTPS redirects.
-- Unknown Host values receive 404.
+- In hostname-allowlist mode, only explicitly listed Host values receive same-host HTTP → HTTPS redirects.
+- In hostname-allowlist mode, unknown Host values receive 404.
 - Set `HTTP_REDIRECT_DOMAINS="all"` to redirect every HTTP request handled by the HAProxy HTTP frontend, regardless of its Host value.
 - ACME HTTP-01 requests under `/.well-known/acme-challenge/` bypass redirects and are sent to the configured webroot backend.
 - The default webroot endpoint is `127.0.0.1:18080` (`ACME_WEBROOT_HOST` / `ACME_WEBROOT_PORT`).
