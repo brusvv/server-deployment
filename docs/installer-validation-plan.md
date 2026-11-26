@@ -39,7 +39,7 @@ The suite covers:
   - A mandatory stage failure stops the profile immediately.
   - Declining profile confirmation returns to the menu without running stages.
 - Check-only/dry-run logging contract: `--check` and dry-run do not create log directories/files; consecutive stage invocations create separate protected logs even within one second.
-- Preflight port validation rejects malformed/out-of-range public ports, duplicate HTTP/HTTPS ports and bridge/public-port collisions. If `ss` is unavailable before the System stage installs `iproute2`, preflight reports that occupancy checks were skipped rather than claiming ports are free.
+- Preflight domain validation rejects malformed hostnames and case-insensitive duplicates in the SNI/WEB and redirect lists; redirect hostnames are also included in DNS checks. A hostname may intentionally appear in both lists.\n- Preflight port validation rejects malformed/out-of-range public ports, duplicate HTTP/HTTPS ports and bridge/public-port collisions. If `ss` is unavailable before the System stage installs `iproute2`, preflight reports that occupancy checks were skipped rather than claiming ports are free.
 - Bridge-settings wizard is exercised in normal and `--dry-run` modes; the test stubs Python to prove the writer uses only the base shell utilities.
 - Backup-stage dry-run reports the planned paths without creating a backup directory or archive.
 
@@ -53,7 +53,7 @@ Use disposable Debian/Ubuntu VMs, not production VPS A/B. Take provider snapshot
 
 1. Bootstrap the exact feature branch and verify the checkout ref.
 2. Create a host-specific `config/domains.env`; run `sudo ./install.sh --check`.
-3. Confirm preflight rejects unsupported OS, malformed/duplicate domains, invalid bridge settings and malformed/out-of-range/duplicate public ports; DNS/occupied public ports are reported as warnings and need operator review. If `ss` is unavailable on a minimal image, confirm preflight explicitly skips socket occupancy checks and System later installs `iproute2`.
+3. Confirm preflight rejects unsupported OS, malformed domains, case-insensitive duplicates, invalid redirect hostnames, invalid bridge settings and malformed/out-of-range/duplicate public ports; DNS/occupied public ports are reported as warnings and need operator review. If `ss` is unavailable on a minimal image, confirm preflight explicitly skips socket occupancy checks and System later installs `iproute2`.
 4. Confirm the backup stage archives existing configured paths and local config before system preparation.
 5. Confirm the system stage asks before installing packages and creates protected state/log/backup directories.
 6. Confirm eGamesAPI consent is required; test refusal and verify the profile stops.
