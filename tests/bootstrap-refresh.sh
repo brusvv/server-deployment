@@ -7,6 +7,8 @@ trap 'rm -rf -- "$tmp"' EXIT
 seed="$tmp/seed"
 origin="$tmp/origin.git"
 install_dir="$tmp/install"
+bootstrap_script="$tmp/bootstrap.sh"
+cp "$ROOT/install.sh" "$bootstrap_script"
 mkdir -p "$seed/lib"
 cp "$ROOT/install.sh" "$seed/install.sh"
 cp "$ROOT/lib/common.sh" "$ROOT/lib/config.sh" "$seed/lib/"
@@ -22,7 +24,7 @@ git -C "$seed" push --quiet -u origin bootstrap-test
 
 run_bootstrap() {
   SD_REPO_URL="file://$origin" SD_GIT_REF=bootstrap-test SD_INSTALL_DIR="$install_dir" \
-    bash "$ROOT/install.sh" --help
+    bash "$bootstrap_script" --help
 }
 
 run_bootstrap >/dev/null
