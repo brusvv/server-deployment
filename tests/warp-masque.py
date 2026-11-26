@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import importlib.util, json, os, sys, tempfile
+import contextlib, importlib.util, io, json, os, sys, tempfile
 from pathlib import Path
 from unittest.mock import patch
 ROOT=Path(__file__).resolve().parents[1]
@@ -50,6 +50,28 @@ with tempfile.TemporaryDirectory() as temp:
     stored = wm.paths(local_cfg)["panel"]
     assert json.loads(stored.read_text()) == saved
     assert os.stat(stored).st_mode & 0o777 == 0o600
+
+# Read-only profile inspection validates GET response and never prints raw secrets.
+profile_fixture = {
+    "uuid": "profile-uuid", "name": "Fixture", "nodes": [{"name": "Node A", "uuid": "node-uuid"}],
+    "config": {
+        "inbounds": [{"tag": "vless-in", "protocol": "vless", "port": 443,
+                      "settings": {"privateKey": "DO_NOT_PRINT_INBOUND_SECRET"}}],
+        "outbounds": [{"tag": "DIRECT", "protocol": "freedom",
+                       "settings": {"secret": "DO_NOT_PRINT_OUTBOUND_SECRET"}}],
+        "routing": {"rules": [{"type": "field", "outboundTag": "DIRECT"}]},
+    },
+}
+with patch.object(wm, "get_profile", return_value=profile_fixture) as get_profile:
+    output = io.StringIO()
+    with contextlib.redirect_stdout(output):
+        inspected = wm.inspect_profile({"url": "http://127.0.0.1:3000", "token": "unused"}, "profile-uuid")
+    assert inspected is profile_fixture
+    get_profile.assert_called_once()
+    rendered = output.getvalue()
+    assert "Fixture" in rendered and "vless-in" in rendered and "DIRECT" in rendered
+    assert "DO_NOT_PRINT" not in rendered and "privateKey" not in rendered and "secret" not in rendered
+    assert "no changes were made" in rendered
 
 creds={"privateKey":"PRIVATE","publicKey":"PUBLIC","address":["172.16.0.2/32"],"endpoint":"162.159.198.2"}
 out=wm.build_outbound(creds,cfg,"h2")
