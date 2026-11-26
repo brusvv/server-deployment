@@ -20,9 +20,6 @@ PROFILE_STAGES=(
   warp-masque
 )
 
-# HAProxy must not be enabled until Xray is confirmed on the loopback backend.
-export XRAY_LISTENER_REQUIRED=1
-
 # These components are optional; the core eGamesAPI Panel + Node stage is mandatory.
 # shellcheck disable=SC2034
 PROFILE_OPTIONAL_STAGES=(mtproxyl haproxy warp-masque)
