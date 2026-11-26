@@ -26,6 +26,7 @@ create_backup() {
     relative_paths+=("$relative")
   done
   (("${#relative_paths[@]}")) || die "No configured paths exist to back up"
+  warn "This backup covers configured application/config files only; Docker volumes, database data, /etc/letsencrypt, firewall state and the full VPS disk are not included."
 
   if [[ "$SD_DRY_RUN" == "1" ]]; then
     info "Dry-run: would create backup of: ${relative_paths[*]}"
@@ -70,6 +71,7 @@ restore_backup() {
   trap 'rm -f -- "${RESTORE_TEMP:-}"' EXIT
 
   python3 "$SD_ROOT/lib/backup_archive.py" "$safe_archive" "${allowed_roots[@]}" || die "Backup archive failed safety validation."
+  warn "Restore extracts files only. It does not restore Docker volumes/database data, restart services or validate application health."
   confirm "Restore validated archive '$archive'? Current files will be overwritten." || exit 0
 
   info "Creating a pre-restore safety backup."
