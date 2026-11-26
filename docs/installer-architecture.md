@@ -34,7 +34,7 @@ These stage maps describe the current repository capabilities, not a claim that 
 
 - eGamesAPI is fetched at a pinned commit (`93e6631aae5f7bff28eadfc45faab43150cc22c6`, v3.8.4), checked out and syntax-validated before its interactive installer is launched. MTProxyL remains an operator-supplied, reviewed local installer.
 - The network adapter stage documents/checks the intended Xray listener arrangement; it does not mutate a Remnawave Config Profile.
-- The HAProxy stage modifies an existing MTProxyL-managed custom config; it is not a standalone HAProxy installer.
+- The HAProxy stage modifies an existing MTProxyL-managed custom config; it is not a standalone HAProxy installer. It requires a live Xray listener at the configured loopback endpoint (default `127.0.0.1:1443`) and returns a skipped status without changing the active config if that listener or another backend is unavailable.
 - Cascade profiles do not create the live Shadowsocks inbound/outbound, service user/squad, routing rules or firewall rules. Those remain in the eGamesAPI Server Routing workflow.
 - Entry does not install a Panel. Panel belongs on B.
 - WARP/MASQUE is optional and independent of the A→B Shadowsocks bridge.
@@ -123,8 +123,9 @@ Upstream eGamesAPI documentation explicitly says the combined Panel + Node
 mode is not recommended for production and recommends separate Panel-only /
 Node-only modes. The installer shows this warning and requires an additional
 confirmation. The combined flow also installs the subscription page and
-reverse-proxy components. Review the upstream warning before using this profile
-for a production deployment.
+reverse-proxy components. The eGamesAPI default Xray listener must be moved to
+the configured loopback endpoint before HAProxy can own public TCP/443. Review
+the upstream warning before using this profile for a production deployment.
 
 ## Stage result contract
 
