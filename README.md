@@ -47,7 +47,7 @@ This is a geographic split, not a full tunnel. The bridge is disabled by default
 
 - It does not reinstall the OS or clean an existing VPS.
 - It does not install a second independent Remnawave stack.
-- It does not execute floating third-party installer branches. The eGamesAPI stage fetches one pinned commit after explicit confirmation; MTProxyL remains an operator-supplied local installer.
+- The repository pins the eGamesAPI installer checkout to one reviewed commit after explicit confirmation; however, that upstream script still retrieves some external runtime dependencies dynamically (including Docker's official install script and fallback module/language files from its `main` branch). MTProxyL remains an operator-supplied local installer.
 - It does not automatically create the A/B Shadowsocks inbound/outbound, service user/squad, routing rules or firewall allowlist. Those operations remain in the eGamesAPI Server Routing workflow and require operator confirmation.
 - It does not automatically edit Remnawave `customResponseHeaders` or subscription-page branding; remove/replace the dummy `support-url` and customize the `profile-title` value manually in Panel settings.
 - It does not automatically mutate the Remnawave inbound for the network adapter.
@@ -192,7 +192,7 @@ sudo ./install.sh --run --stage warp-masque
 
 Available stages: `preflight`, `system`, `remnawave`, `adapter`, `mtproxyl`, `haproxy`, `validate`, `backup`, `warp-masque`.
 
-The eGamesAPI stage downloads only the pinned commit listed above; it does not follow a floating `main` branch for the installer or bundled modules. The optional MTProxyL stage still accepts a reviewed local installer:
+The eGamesAPI stage checks out the pinned commit listed above and uses its bundled `src/` files when present. The pinned upstream script sets `SOURCE_BRANCH=main` for missing-module/language fallbacks and may download external runtime scripts; the commit pin therefore does not freeze every dependency. The optional MTProxyL stage still accepts a reviewed local installer:
 
 ```bash
 export MTPROXYL_INSTALLER_LOCAL=/root/installers/reviewed-mtproxyl-installer.sh
