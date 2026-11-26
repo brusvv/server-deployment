@@ -15,12 +15,12 @@ cp "$ROOT/lib/common.sh" "$ROOT/lib/config.sh" "$ROOT/lib/backup_archive.py" "$f
 cat > "$fixture/config/services.env" <<EOF
 REMNAWAVE_DIR="$tmp/remnawave"
 MTProxyL_DIR="$tmp/mtproxyl"
-HAPROXY_CONFIG="$tmp/haproxy.cfg"
+HAPROXY_CONFIG="$tmp/mtproxyl/haproxy.cfg"
 BACKUP_DIR="$tmp/backups"
 STATE_DIR="$tmp/state"
 EOF
 printf 'original\n' > "$tmp/remnawave/marker"
-printf 'haproxy\n' > "$tmp/haproxy.cfg"
+printf 'haproxy\n' > "$tmp/mtproxyl/haproxy.cfg"
 
 as_root() {
   if [[ "$EUID" == 0 ]]; then "$@"; else sudo -n "$@"; fi
