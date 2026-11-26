@@ -24,7 +24,7 @@ The interactive installer exposes two top-level choices:
 
 | Profile | Stage sequence |
 |---|---|
-| Single server | preflight → system → remnawave → adapter → mtproxyl → haproxy → validate → warp-masque |
+| Single server | preflight → backup → system → remnawave → adapter → mtproxyl → haproxy → validate → warp-masque |
 | Cascade A / Entry | preflight → system → validate |
 | Cascade B / Panel + Exit | preflight → system → remnawave → adapter → mtproxyl → haproxy → validate → warp-masque |
 
