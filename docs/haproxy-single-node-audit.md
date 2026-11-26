@@ -167,3 +167,48 @@ The website-template DLC should be repeatable, detect whether eGames is installe
 - Keep automatic post-install application optional until dependency ordering and failure handling are defined. The initial user-facing flow can be: install eGames base, then explicitly install the project games-template DLC. Later, automate this hand-off after the base install succeeds.
 
 This is an architectural direction agreed in discussion, not a claim that a DLC framework already exists in the repository. Before implementation, inspect the current menu, module registry, eGames installer and website file layout, then fit the DLC dispatcher into the existing project conventions.
+
+## Installer path review — 2026-11-27
+
+Reviewed the interactive profile dispatcher, profile definitions, stage runner and relevant stage scripts on `fix/warp-local-panel-api`.
+
+### Profile/menu findings
+
+- The interactive menu currently exposes three profiles: standard Remnawave, Remnawave with additional components, and cascade.
+- There is no separate DLC/add-ons menu or dispatcher yet.
+- The standard profile runs `preflight → backup → system → remnawave → validate`.
+- The extended profile runs `preflight → backup → system → remnawave → adapter → mtproxyl → haproxy → validate → warp-masque`; MTProxyL, HAProxy and WARP/MASQUE are marked optional.
+- The one-host test scope should use the standard profile or the extended profile with its optional network integrations deliberately excluded until the HAProxy architecture is decided. Cascade profiles are out of scope for this audit.
+
+### eGames and website-template findings
+
+- `modules/02-remnawave.sh` fetches a pinned eGamesAPI installer commit, verifies the commit and script version, then launches the upstream interactive installer.
+- It asks the operator to select eGames menu item 1, then item 1 (Panel + Node on one server).
+- After eGames completes, this module runs `checks/remnawave-container-audit.sh` and then applies `checks/remnawave-nginx-hardening.sh --apply`.
+- There is no project-owned games-template customization call in this stage.
+- The repository contains two website HTML assets under `web/`: `black-universe.html` and `classic_arcades.html`. No DLC framework or template installation/update/remove command is currently present in the reviewed menu or stage runner.
+- Therefore the reported stock eGames template is consistent with the current code path: eGames installs its own site, and the project does not subsequently invoke a function to deploy either of its own HTML templates. This is a repository-code finding; the exact live document root and which HTML asset should be selected still need confirmation from the installed host.
+
+### Important safety finding: `--check` is not globally read-only
+
+The CLI exports `SD_MODE=check`, but several stages do not gate mutations on that mode:
+
+- `modules/01-system.sh` still prompts and runs `apt-get update`, `apt-get install`, and creates directories.
+- `modules/02-remnawave.sh` launches the eGamesAPI installer and later applies Nginx hardening.
+- `modules/04-mtproxyl.sh` can run a local installer if `MTPROXYL_INSTALLER_LOCAL` is set and the operator confirms.
+- `modules/07-backup.sh` creates a backup by default; it checks `SD_DRY_RUN`, not `SD_MODE`.
+
+Thus `--check` must not be described as a universal dry-run, and operators must not use it indiscriminately across all stages. In the current implementation, the reviewed `adapter`, `haproxy` check branch (when prerequisites are absent/present), `validate`, and `preflight` paths are intended as checks, but each should still be reviewed before execution. The installer should be corrected so check mode is guaranteed non-mutating by construction, ideally with stage-level tests that fail if package installs, writes, service reloads, profile updates, or backup creation occur.
+
+### Next safe test commands for this VM
+
+After reviewing these commands, the operator can run only the following check-oriented stages (do not substitute `system`, `remnawave`, `mtproxyl`, or `backup` under `--check`):
+
+```bash
+cd /opt/server-deployment
+sudo ./install.sh --check --stage preflight
+sudo ./install.sh --check --stage haproxy
+sudo ./install.sh --check --stage validate
+```
+
+These results should be collected before any port/profile/service changes. The eGames site-template DLC itself is not implemented yet.
