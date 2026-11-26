@@ -33,7 +33,6 @@ if [[ "${SS_BRIDGE_ENABLED:-0}" == "1" ]]; then
  SS_BRIDGE_PORT="$(validate_port_value SS_BRIDGE_PORT "${SS_BRIDGE_PORT:-}")"
  [[ "$SS_BRIDGE_PORT" != "$PUBLIC_HTTP_PORT" && "$SS_BRIDGE_PORT" != "$PUBLIC_HTTPS_PORT" ]] ||
   die "SS_BRIDGE_PORT must not overlap the public HTTP/HTTPS ports."
- command -v ss >/dev/null 2>&1 || die "The ss command (iproute2) is required to verify the enabled bridge port"
  if ss -H -lnt "( sport = :$SS_BRIDGE_PORT )" 2>/dev/null | grep -q .; then
   ss -lntp "( sport = :$SS_BRIDGE_PORT )" || true
   die "TCP $SS_BRIDGE_PORT is occupied; choose another SS_BRIDGE_PORT"
