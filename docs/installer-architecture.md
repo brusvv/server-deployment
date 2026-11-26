@@ -25,8 +25,8 @@ The interactive installer exposes two top-level choices:
 | Profile | Stage sequence |
 |---|---|
 | Single server | preflight → system → remnawave → adapter → mtproxyl → haproxy → validate → warp-masque |
-| Cascade A / Entry | preflight → system → adapter → validate |
-| Cascade B / Panel + Exit | preflight → system → remnawave → mtproxyl → haproxy → validate → warp-masque |
+| Cascade A / Entry | preflight → system → validate |
+| Cascade B / Panel + Exit | preflight → system → remnawave → adapter → mtproxyl → haproxy → validate → warp-masque |
 
 These stage maps describe the current repository capabilities, not a claim that every step fully provisions a production topology.
 
