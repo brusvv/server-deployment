@@ -5,6 +5,7 @@ PROFILE_TITLE="Каскад Remnawave — VPS B / Panel + Exit"
 PROFILE_DESCRIPTION="Роль зарубежного сервера с Panel и локальным Exit Node. eGamesAPI и MTProxyL запускаются только через проверенные локальные установщики; HAProxy адаптирует существующую конфигурацию. Живой A→B bridge автоматически не создаётся."
 PROFILE_STAGES=(
   preflight
+  backup
   system
   remnawave
   adapter
