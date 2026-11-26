@@ -10,6 +10,7 @@ LAST_BACKUP=""
 validate_backup_directory() {
   local path
   [[ "$BACKUP_DIR" == /* && "$BACKUP_DIR" != "/" ]] || die "BACKUP_DIR must be an absolute non-root path."
+  [[ ! -L "$BACKUP_DIR" ]] || die "BACKUP_DIR must not be a symlink: $BACKUP_DIR"
   case "/$BACKUP_DIR/" in */../*) die "BACKUP_DIR contains traversal: $BACKUP_DIR";; esac
   for path in "$REMNAWAVE_DIR" "${MTProxyL_DIR:-/opt/mtproxyl}" "$HAPROXY_CONFIG" "$SD_ROOT/config"; do
     [[ "$path" == /* && "$path" != "/" ]] || die "Configured backup path must be an absolute non-root path: $path"
