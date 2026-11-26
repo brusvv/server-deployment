@@ -26,7 +26,37 @@ if [[ ! -f "$SCRIPT_DIR/lib/common.sh" ]]; then
         echo "Switch the checkout explicitly or use another SD_INSTALL_DIR." >&2
         exit 1
       fi
-      echo "Using existing checkout: $INSTALL_DIR ($existing_ref)"
+      if [[ -n "$(git -C "$INSTALL_DIR" status --porcelain --untracked-files=normal)" ]]; then
+        echo "ERROR: existing checkout has local modifications or untracked files: $INSTALL_DIR" >&2
+        echo "Commit/stash them or use another SD_INSTALL_DIR; bootstrap will not overwrite local work." >&2
+        exit 1
+      fi
+
+      if [[ "$(git -C "$INSTALL_DIR" rev-parse --is-shallow-repository)" == "true" ]]; then
+        git -C "$INSTALL_DIR" fetch --quiet --unshallow "$REPO_URL" "refs/heads/$REPO_REF" || {
+          echo "ERROR: could not refresh shallow checkout from $REPO_URL ($REPO_REF)." >&2
+          exit 1
+        }
+      else
+        git -C "$INSTALL_DIR" fetch --quiet "$REPO_URL" "refs/heads/$REPO_REF" || {
+          echo "ERROR: could not fetch $REPO_REF from $REPO_URL." >&2
+          exit 1
+        }
+      fi
+
+      if git -C "$INSTALL_DIR" merge-base --is-ancestor HEAD FETCH_HEAD; then
+        git -C "$INSTALL_DIR" merge --ff-only FETCH_HEAD >/dev/null || {
+          echo "ERROR: fast-forward update failed; checkout was not changed." >&2
+          exit 1
+        }
+        echo "Updated existing checkout: $INSTALL_DIR ($REPO_REF)"
+      elif git -C "$INSTALL_DIR" merge-base --is-ancestor FETCH_HEAD HEAD; then
+        echo "Existing checkout is already ahead of remote $REPO_REF; keeping local commit."
+      else
+        echo "ERROR: local checkout and remote $REPO_REF have diverged." >&2
+        echo "Resolve the branch explicitly or use another SD_INSTALL_DIR." >&2
+        exit 1
+      fi
     else
       echo "ERROR: $INSTALL_DIR exists but is not a server-deployment checkout." >&2
       echo "Set SD_INSTALL_DIR to another path or move the existing directory." >&2
@@ -51,8 +81,13 @@ ROOT_DIR="$SCRIPT_DIR"
 export SD_ROOT="$ROOT_DIR"
 source "$SD_ROOT/lib/common.sh"
 source "$SD_ROOT/lib/config.sh"
+if [[ "${1:-}" == "backup" ]]; then
+  shift
+  export SD_MODE="${SD_MODE:-run}" SD_DRY_RUN="${SD_DRY_RUN:-0}"
+  exec bash "$ROOT_DIR/modules/07-backup.sh" "$@"
+fi
 MODE=check STAGE=all DRY_RUN=0 CONFIGURE_BRIDGE=0
-usage(){ echo "Usage: sudo ./install.sh [--check|--run] [--dry-run] [--configure-bridge] [--stage preflight|system|remnawave|adapter|mtproxyl|haproxy|validate|backup|warp-masque]"; }
+usage(){ echo "Usage: sudo ./install.sh [--check|--run] [--dry-run] [--configure-bridge] [--stage preflight|system|remnawave|adapter|mtproxyl|haproxy|validate|backup|warp-masque]"; echo "       sudo ./install.sh backup [create|list|restore /path/to/archive.tar.gz]"; }
 persist_bridge_settings(){
  local file="$SD_ROOT/config/ports.env" tmp backup
  [[ -f "$file" && ! -L "$file" ]] || die "Expected a regular config file: $file"
