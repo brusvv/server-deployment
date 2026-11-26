@@ -110,3 +110,33 @@ Review the output before deciding between:
 - Redact public IPs and hostnames before sharing externally.
 - This snapshot is from a disposable test VM and is not evidence that production hosts have the same state.
 - No installation, service reload, Remnawave profile mutation or firewall change was performed during this audit.
+
+
+## Additional operator observations (2026-11-26 23:37 UTC)
+
+### Adapter check
+
+The operator reran the check with both stage identifiers:
+
+- `--stage network-adapter` returned `Unknown stage: network-adapter`.
+- `--stage adapter` was recognized and printed the expected target `127.0.0.1:1443` and fallback socket `/dev/shm/nginx.sock`.
+- The check explicitly stated that no Remnawave profile was changed and that automatic mutation remains disabled pending a pinned/tested OpenAPI schema, selected profile, inbound ID and update payload.
+
+This is a successful non-mutating stage check, not evidence that the Xray listener has moved to loopback or that HAProxy is installed/running. The previous live-listener observation remains authoritative until a fresh socket check proves otherwise.
+
+### eGames website template conflict — operator report
+
+The operator reports that after installing eGames, the website displays/uses the eGames-provided template instead of the project's games template.
+
+This is currently an operator-observed symptom; the exact installer action, target directory and overwrite mechanism have not yet been established. Do not assume whether this is intentional eGames behavior, a template-selection error, or an overwrite of the project's site assets.
+
+#### Required investigation and acceptance checks
+
+1. Trace the eGames installation path and identify every step that downloads, copies, extracts, symlinks, or changes ownership/permissions of website/template assets.
+2. Identify the configured website document root and the exact source/destination paths for both the eGames template and the project's games template.
+3. Determine whether eGames should install only its API/reverse-proxy integration while preserving the project's games site, or whether the user must explicitly choose a site template.
+4. Make template selection explicit and non-destructive. Never silently replace the games template with an eGames template.
+5. Add a post-install check that verifies the expected games-template marker/assets remain present and that the served document root points to the intended template.
+6. Test fresh installation and installation over an existing games site; verify idempotency and rollback behavior.
+
+No corrective code change has been made yet because the responsible eGames install path and intended template ownership need to be traced first.
