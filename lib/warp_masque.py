@@ -209,6 +209,10 @@ def is_catch_all(rule):
     keys=("inboundTag","domain","ip","port","source","user","protocol","attrs","network","sourcePort")
     return isinstance(rule,dict) and not any(k in rule for k in keys)
 
+def insert_before_fallback(rules, rule):
+    index=next((i for i,item in enumerate(rules) if is_catch_all(item)),len(rules))
+    rules.insert(index,rule)
+
 def validate_domains(raw):
     result=[]
     for item in re.split(r"[\s,;]+",raw.strip()):
@@ -265,8 +269,7 @@ def update_profile(panel,uuid,creds,cfg,mode,domains=None):
         rules.remove(old)
     rule=build_rule(mode,tag,domains)
     if rule is not None:
-        index=next((i for i,x in enumerate(rules) if is_catch_all(x)),len(rules))
-        rules.insert(index,rule)
+        insert_before_fallback(rules,rule)
     if any(isinstance(x,dict) and x.get("outboundTag")==tag and x!=rule for x in rules):
         raise WarpError("Other routing rules reference the WARP tag; resolve them manually")
     nodes=profile.get("nodes") or []
@@ -371,6 +374,7 @@ def menu(cfg):
                 panel=get_panel(cfg); uuid=managed_profile(panel,cfg)
                 creds=read_json(paths(cfg)["creds"],{}); record=read_json(paths(cfg)["managed"],{})[uuid]
                 mode,domains=record.get("routeMode","none"),record.get("domains",[])
+                cfg["WARP_MASQUE_TRANSPORT"]=record.get("transport","h2")
                 if choice=="4":
                     pick=input("Routing: 0=outbound only, 1=unmatched traffic, 2=domains: ").strip()
                     if pick=="0": mode,domains="none",[]
