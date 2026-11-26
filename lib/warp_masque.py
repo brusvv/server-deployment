@@ -310,6 +310,24 @@ def inspect_profile(panel, uuid):
         if isinstance(item, dict):
             print(f"  - {item.get('tag', 'untagged')} | {item.get('protocol', 'unknown')}")
     print(f"Routing rules: {len(rules)}")
+    safe_rule_fields = ("type", "inboundTag", "domain", "ip", "port", "network", "protocol", "outboundTag")
+    for index, rule in enumerate(rules, 1):
+        if not isinstance(rule, dict):
+            print(f"  {index}. [non-object rule]")
+            continue
+        parts = []
+        for key in safe_rule_fields:
+            value = rule.get(key)
+            if value is None:
+                continue
+            if isinstance(value, list):
+                rendered = ", ".join(str(item) for item in value)
+            else:
+                rendered = str(value)
+            if len(rendered) > 180:
+                rendered = rendered[:177] + "..."
+            parts.append(f"{key}={rendered}")
+        print(f"  {index}. " + ("; ".join(parts) if parts else "[no standard match fields]"))
     print("Secrets and raw config values were not displayed; no changes were made.")
     return profile
 
