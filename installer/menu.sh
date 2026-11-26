@@ -19,18 +19,24 @@ installer_menu_select_profile() {
     printf '       SERVER DEPLOYMENT\n'
     printf '========================================\n'
     printf '\nУстановка:\n'
-    printf '  1. Один сервер\n'
-    printf '     Remnawave / MTProxyL / HAProxy\n'
-    printf '\n  2. Каскад Remnawave\n'
+    printf '  1. Обычная установка Remnawave\n'
+    printf '     Panel + Node, без дополнительных компонентов\n'
+    printf '\n  2. Remnawave + дополнительные компоненты\n'
+    printf '     MTProxyL / HAProxy / WARP-MASQUE\n'
+    printf '\n  3. Каскад Remnawave\n'
     printf '     VPS A — Entry; VPS B — Panel + Exit\n'
     printf '\n  0. Выход\n\n'
-    choice="$(installer_menu_read 'Выберите сценарий [1/2/0]: ')" || return 2
+    choice="$(installer_menu_read 'Выберите сценарий [1/2/3/0]: ')" || return 2
     case "$choice" in
       1)
-        export INSTALL_PROFILE_FILE="$SD_ROOT/profiles/single-server/profile.sh"
+        export INSTALL_PROFILE_FILE="$SD_ROOT/profiles/remnawave-standard/profile.sh"
         return 0
         ;;
       2)
+        export INSTALL_PROFILE_FILE="$SD_ROOT/profiles/single-server/profile.sh"
+        return 0
+        ;;
+      3)
         while true; do
           printf '\nКаскад Remnawave\n'
           printf '  1. VPS A — Entry (Россия)\n'
