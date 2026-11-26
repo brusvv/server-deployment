@@ -23,7 +23,7 @@ for container in "${required_containers[@]}"; do
 
   image_ref="$(docker inspect --format '{{.Config.Image}}' "$container")" || die "Cannot inspect image reference: $container"
   image_id="$(docker inspect --format '{{.Image}}' "$container")" || die "Cannot inspect image ID: $container"
-  repo_digests="$(docker image inspect --format '{{join .RepoDigests \",\"}}' "$image_id" 2>/dev/null || true)"
+  repo_digests="$(docker image inspect --format '{{join .RepoDigests ","}}' "$image_id" 2>/dev/null || true)"
   info "Container image: $container ref=$image_ref image_id=$image_id repo_digests=${repo_digests:-unavailable}"
 done
 
