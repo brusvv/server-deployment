@@ -142,7 +142,7 @@ Check-only is the default. It does not install packages, run external installers
 
 When started with no arguments in an interactive terminal, `./install.sh` opens the installation menu:
 
-1. **Обычная установка Remnawave** — Panel + local Node only; no MTProxyL, HAProxy, network adapter or WARP/MASQUE stages.
+1. **Обычная установка Remnawave** — eGamesAPI combined Panel + local Node mode (also includes its subscription page/reverse proxy); no additional repository components. Upstream warns this combined mode is not recommended for production.
 2. **Remnawave + дополнительные компоненты** — the extended single-host profile with the network adapter, MTProxyL, HAProxy integration and optional WARP/MASQUE.
 3. **Каскад Remnawave** — asks whether this machine is VPS A (Entry) or VPS B (Panel + Exit).
 
