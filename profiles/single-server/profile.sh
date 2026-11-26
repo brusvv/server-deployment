@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2034
 # Current single-host orchestration sequence.
 PROFILE_ID="single-server"
 PROFILE_TITLE="Один сервер"
