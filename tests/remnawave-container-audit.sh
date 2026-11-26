@@ -23,7 +23,14 @@ case "$1" in
       '{{.Config.Image}}') echo "example/$container:latest" ;;
       '{{.Image}}') echo "sha256:fake-$container" ;;
       '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}')
-        [[ "${FAKE_DOCKER_UNHEALTHY:-}" == "$container" ]] && echo unhealthy || echo healthy
+        if [[ "${FAKE_DOCKER_UNHEALTHY:-}" == "$container" ]]; then
+          echo unhealthy
+        elif [[ "${FAKE_DOCKER_STARTING_ONCE:-}" == "$container" && ! -e "${FAKE_DOCKER_STATE_FILE:-}" ]]; then
+          : > "$FAKE_DOCKER_STATE_FILE"
+          echo starting
+        else
+          echo healthy
+        fi
         ;;
       *) echo "Unexpected docker inspect template: $format" >&2; exit 2 ;;
     esac
@@ -38,11 +45,22 @@ case "$1" in
     ;;
 esac
 DOCKER
-chmod +x "$tmp/bin/docker"
+cat > "$tmp/bin/sleep" <<'SLEEP'
+#!/usr/bin/env bash
+exit 0
+SLEEP
+chmod +x "$tmp/bin/docker" "$tmp/bin/sleep"
 
 PATH="$tmp/bin:$PATH" bash "$ROOT/checks/remnawave-container-audit.sh" >"$tmp/success.out"
 grep -q "All expected eGamesAPI Panel + Node containers are running" "$tmp/success.out"
 grep -q "repo_digests=example/" "$tmp/success.out"
+
+PATH="$tmp/bin:$PATH" FAKE_DOCKER_STARTING_ONCE=remnawave FAKE_DOCKER_STATE_FILE="$tmp/starting.once" \
+  bash "$ROOT/checks/remnawave-container-audit.sh" >"$tmp/starting.out"
+grep -q "Container health is healthy: remnawave" "$tmp/starting.out" || {
+  echo "Container audit did not wait through the starting health state" >&2
+  exit 1
+}
 
 if PATH="$tmp/bin:$PATH" FAKE_DOCKER_MISSING=remnawave-nginx \
   bash "$ROOT/checks/remnawave-container-audit.sh" >"$tmp/missing.out" 2>&1; then
