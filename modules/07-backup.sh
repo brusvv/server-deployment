@@ -12,7 +12,7 @@ create_backup() {
   local -a relative_paths=()
   for path in "$REMNAWAVE_DIR" "${MTProxyL_DIR:-/opt/mtproxyl}" "$HAPROXY_CONFIG" "$SD_ROOT/config"; do
     [[ -e "$path" || -L "$path" ]] || continue
-    [[ "$path" == /* ]] || die "Backup path must be absolute: $path"
+    [[ "$path" == /* && "$path" != "/" ]] || die "Backup path must be an absolute non-root path: $path"
     case "/$path/" in */../*) die "Backup path contains traversal: $path";; esac
     relative="${path#/}"
     covered=0
@@ -27,6 +27,15 @@ create_backup() {
     relative_paths+=("$relative")
   done
   (("${#relative_paths[@]}")) || die "No configured paths exist to back up"
+  [[ "$BACKUP_DIR" == /* && "$BACKUP_DIR" != "/" ]] || die "BACKUP_DIR must be an absolute non-root path."
+  case "/$BACKUP_DIR/" in */../*) die "BACKUP_DIR contains traversal: $BACKUP_DIR";; esac
+  for relative in "${relative_paths[@]}"; do
+    case "$BACKUP_DIR" in
+      "/$relative"|"/$relative/"*)
+        die "BACKUP_DIR must not be inside a path being backed up: $BACKUP_DIR"
+        ;;
+    esac
+  done
   warn "This backup covers configured application/config files only; Docker volumes, database data, /etc/letsencrypt, firewall state and the full VPS disk are not included."
 
   if [[ "$SD_DRY_RUN" == "1" ]]; then
