@@ -2,18 +2,14 @@
 set -Eeuo pipefail
 source "$SD_ROOT/lib/common.sh"
 source "$SD_ROOT/lib/config.sh"
+source "$SD_ROOT/lib/domain-validation.sh"
 [[ -r /etc/os-release ]] || die "Cannot identify OS"
 # shellcheck disable=SC1091
 . /etc/os-release
 [[ "${ID:-}" == debian || "${ID:-}" == ubuntu ]] || die "Supported OS: Debian/Ubuntu; found ${ID:-unknown}"
 require_domains
-read -r -a remnawave_domains <<< "$REMNAWAVE_SNI_DOMAINS"
-declare -A seen_domains=()
-for domain in "${remnawave_domains[@]}" "$WEB_DOMAIN"; do
- [[ "$domain" =~ ^([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$ ]] || die "Invalid domain: $domain"
- [[ -z "${seen_domains[$domain]:-}" ]] || die "Duplicate domain: $domain"
- seen_domains["$domain"]=1
-done
+validate_domain_list "Remnawave SNI/WEB" "$REMNAWAVE_SNI_DOMAINS $WEB_DOMAIN"
+validate_domain_list "HTTP redirect allowlist" "$HTTP_REDIRECT_DOMAINS"
 bash "$SD_ROOT/checks/domains.sh"
 bash "$SD_ROOT/checks/ports.sh"
 info "Preflight completed"
