@@ -6,7 +6,7 @@ Safety-first deployment helpers and integration adapters for a Remnawave two-nod
 
 ## Branch and scope
 
-This README describes **`feature/remnawave-cascade-bridge`**. It supersedes the older HTTP-redirect/SelfSteal feature-branch instructions.
+This README describes **`feature/remnawave-fingerprint-hardening`**. It supersedes the older HTTP-redirect/SelfSteal feature-branch instructions.
 
 The target topology is:
 
@@ -101,14 +101,14 @@ Do not assume A and B have a private network. Verify provider support, routes an
 
 ## Install this branch
 
-The bootstrap defaults to `main`. To bootstrap this feature branch from a terminal, set `SD_GIT_REF=feature/remnawave-cascade-bridge`; the bootstrap validates that an existing checkout is already on the requested branch and will not switch it automatically. For a reproducible deployment, prefer a reviewed local checkout pinned to a commit.
+The bootstrap defaults to `main`. To bootstrap this feature branch from a terminal, set `SD_GIT_REF=feature/remnawave-fingerprint-hardening`; the bootstrap validates that an existing checkout is already on the requested branch and will not switch it automatically. For a reproducible deployment, prefer a reviewed local checkout pinned to a commit.
 
 ```bash
 apt-get update
 apt-get install -y git
 
 git clone --depth 1 \
-  --branch feature/remnawave-cascade-bridge \
+  --branch feature/remnawave-fingerprint-hardening \
   https://github.com/brusvv/server-deployment.git \
   /opt/server-deployment
 
