@@ -36,4 +36,16 @@ expect_failure "Duplicate public ports" 443 443 0 9999
 expect_failure "Bridge/public port collision" 80 443 1 443
 expect_failure "Non-numeric bridge port" 80 443 1 abc
 
+# Missing iproute2/ss must be an explicit preflight failure, never reported as
+# an apparently free public port.
+if PATH="$tmp/empty" SD_ROOT="$ROOT" PUBLIC_HTTP_PORT=80 PUBLIC_HTTPS_PORT=443 \
+  /bin/bash "$ROOT/checks/ports.sh" >"$tmp/no-ss.out" 2>&1; then
+  echo "Preflight unexpectedly passed without ss" >&2
+  exit 1
+fi
+grep -q "ss command (iproute2) is required" "$tmp/no-ss.out" || {
+  echo "Missing ss failure message not found" >&2
+  exit 1
+}
+
 echo "Public and bridge port validation tests passed."
