@@ -38,6 +38,14 @@ bash checks/remnawave-nginx-hardening.sh --apply --config "$config"
 reload_count="$(grep -c 'nginx -s reload' "$DOCKER_LOG" || true)"
 [[ "$reload_count" -eq 1 ]]
 
+# A nested server-level directive does not satisfy the global http-context setting.
+nested="$tmp/nginx-nested.conf"
+printf 'server {\n    server_tokens off;\n}\n' > "$nested"
+bash checks/remnawave-nginx-hardening.sh --apply --config "$nested"
+[[ "$(head -n 1 "$nested")" == 'server_tokens off;' ]]
+[[ "$(grep -c 'server_tokens off;' "$nested")" -eq 2 ]]
+bash checks/remnawave-nginx-hardening.sh --check --config "$nested"
+
 # Existing non-off directives and ambiguous duplicate directives must fail closed.
 bad="$tmp/nginx-bad.conf"
 printf 'server_tokens on;\n' > "$bad"
