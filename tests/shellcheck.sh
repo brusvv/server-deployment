@@ -19,6 +19,7 @@ bash tests/remnawave-nginx-hardening.sh
 bash tests/common-logging.sh
 bash tests/backup-dry-run.sh
 bash tests/backup-restore-safety.sh
+bash tests/bootstrap-refresh.sh
 bash tests/cascade-config.sh
 bash tests/installer-profiles.sh
 python3 tests/warp-masque.py
