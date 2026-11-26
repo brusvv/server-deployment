@@ -10,6 +10,7 @@ DEFAULTS = {
     "WARP_MASQUE_TRANSPORT": "h2", "WARP_MASQUE_TAG": "warp-masque",
     "WARP_MASQUE_ENDPOINT_PORT": "443", "WARP_MASQUE_SERVER_NAME": "consumer-masque.cloudflareclient.com",
     "WARP_MASQUE_API_URL": "https://api.cloudflareclient.com/v0a4471/reg",
+    "WARP_MASQUE_PANEL_API_URL": "http://127.0.0.1:3000",
     "WARP_MASQUE_CLIENT_VERSION": "a-6.35-4471", "WARP_MASQUE_MIN_XRAY_VERSION": "26.10.31",
     "WARP_MASQUE_STATE_DIR": "/var/lib/server-deployment/warp-masque",
     "WARP_MASQUE_BACKUP_DIR": "/var/backups/server-deployment/warp-masque",
@@ -72,22 +73,74 @@ def http_json(url, method, headers, body=None):
     try: return json.loads(raw)
     except (UnicodeDecodeError, json.JSONDecodeError): raise WarpError("API returned invalid JSON") from None
 
+def is_loopback_host(host):
+    if host.lower() == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+def normalize_panel_url(value):
+    try:
+        parsed = urllib.parse.urlsplit(value.strip())
+        host = parsed.hostname
+        port = parsed.port
+    except (AttributeError, ValueError):
+        raise WarpError("Invalid Remnawave API URL") from None
+    if parsed.scheme not in ("http", "https") or not host:
+        raise WarpError("Remnawave API URL must use HTTP(S)")
+    if parsed.username is not None or parsed.password is not None:
+        raise WarpError("Credentials must not be embedded in the Remnawave API URL")
+    if parsed.path not in ("", "/") or parsed.query or parsed.fragment:
+        raise WarpError("Remnawave API URL must not contain a path, query or fragment")
+    local = is_loopback_host(host)
+    if parsed.scheme == "http" and not local:
+        raise WarpError("Plain HTTP is allowed only for a loopback Remnawave Backend URL")
+    # Accessing .port above validates the port syntax and range.
+    _ = port
+    return value.strip().rstrip("/"), local
+
+def panel_headers(panel):
+    _, local = normalize_panel_url(panel["url"])
+    headers = {
+        "Authorization": "Bearer " + panel["token"],
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+    # Remnawave's ProxyCheckMiddleware requires these only when talking
+    # directly to the loopback Backend, bypassing Nginx/TLS like eGamesAPI.
+    # Never spoof forwarded headers when using a public reverse-proxy URL.
+    if local:
+        headers.update({
+            "X-Forwarded-For": "127.0.0.1",
+            "X-Forwarded-Proto": "https",
+            "X-Remnawave-Client-Type": "browser",
+        })
+    return headers
+
 def panel_call(panel, method, path, body=None):
-    return unwrap(http_json(panel["url"].rstrip("/") + path, method, {
-        "Authorization":"Bearer "+panel["token"], "Accept":"application/json", "Content-Type":"application/json"
-    }, body))
+    url, _ = normalize_panel_url(panel["url"])
+    return unwrap(http_json(url + path, method, panel_headers(panel), body))
 
 def configure_panel(cfg):
-    p, old = paths(cfg), read_json(paths(cfg)["panel"], {})
-    url = (input(f"Remnawave Panel HTTPS URL [{old.get('url','')}]: ").strip() or old.get("url","")).rstrip("/")
-    if not url.startswith("https://"): raise WarpError("Panel URL must use HTTPS")
-    token = getpass.getpass("Remnawave API token (hidden; blank keeps saved token): ").strip() or old.get("token","")
-    if not token: raise WarpError("API token is required")
-    panel = {"url":url,"token":token}
-    result = panel_call(panel,"GET","/api/config-profiles")
-    if not isinstance(result,dict) or not isinstance(result.get("configProfiles"),list):
+    p = paths(cfg)
+    old = read_json(p["panel"], {})
+    default_url = old.get("url") or cfg.get("WARP_MASQUE_PANEL_API_URL", DEFAULTS["WARP_MASQUE_PANEL_API_URL"])
+    entered_url = input(f"Remnawave API URL [{default_url}]: ").strip() or default_url
+    url, local = normalize_panel_url(entered_url)
+    token = getpass.getpass("Remnawave API token (hidden; blank keeps saved token): ").strip() or old.get("token", "")
+    if not token:
+        raise WarpError("API token is required")
+    panel = {"url": url, "token": token}
+    result = panel_call(panel, "GET", "/api/config-profiles")
+    if not isinstance(result, dict) or not isinstance(result.get("configProfiles"), list):
         raise WarpError("Panel API response is incompatible; expected response.configProfiles")
-    save_json(p["panel"],panel)
+    save_json(p["panel"], panel)
+    if local:
+        print("Using local Remnawave Backend; trusted reverse-proxy headers enabled.")
+    else:
+        print("Using HTTPS reverse-proxy URL; forwarded headers are provided by the proxy.")
     print(f"Panel API connected; {len(result['configProfiles'])} profiles found.")
     return panel
 
