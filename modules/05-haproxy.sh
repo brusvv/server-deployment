@@ -220,7 +220,7 @@ if (( READY == 0 )); then
  save_port_plan
  warn "Services are not ready for the selected ports. The active HAProxy config was NOT changed and was NOT reloaded."
  warn "Configure the backend services, then rerun: sudo ./install.sh --run --stage haproxy"
- exit 0
+ exit 10
 fi
 
 tmp="$(mktemp "${config}.server-deployment.XXXXXX")"
@@ -252,7 +252,7 @@ fi
 
 confirm_tty "Apply the selected port layout and Remnawave SNI routing to $config, then reload $service?" || {
  info "HAProxy integration cancelled; active config was not changed."
- exit 0
+ exit 10
 }
 
 backup="${config}.before-server-deployment.$(date -u +%Y%m%dT%H%M%SZ)"
