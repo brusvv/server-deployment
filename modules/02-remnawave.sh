@@ -19,8 +19,10 @@ IMPORTANT: eGamesAPI documents the combined Panel + Node mode as not recommended
 for production. It recommends separate Panel-only / Node-only deployment modes.
 
 The eGamesAPI script commit is pinned, but its generated Compose file uses mutable
-image tags (including backend:3 and latest tags). Actual image IDs and repository
-digests will be recorded after installation; this does not make those tags pinned.
+image tags (including backend:3 and latest tags). It also uses SOURCE_BRANCH=main
+for fallback module/language downloads when bundled files are missing, and may fetch
+Docker's installer dynamically. Actual image IDs and repository digests will be
+recorded after installation; this does not make those tags or fallbacks pinned.
 EOF
 
 confirm "I understand the single-server Panel + Node limitation; continue with eGamesAPI?" ||
