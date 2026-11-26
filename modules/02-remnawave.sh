@@ -58,3 +58,8 @@ grep -qx 'remnanode' "$work_dir/running-containers" ||
   die "eGamesAPI returned success, but the local Remnawave Node container is not running."
 
 info "Verified running containers: Remnawave Panel and local Remnawave Node."
+
+# Harden the generated Nginx response before declaring the eGamesAPI stage complete.
+# The helper backs up the host config, validates it inside the container and reloads
+# only remnawave-nginx; it is idempotent and restores the backup on failure.
+bash "$SD_ROOT/checks/remnawave-nginx-hardening.sh" --apply
