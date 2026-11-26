@@ -19,6 +19,7 @@ bash tests/egamesapi-bridge-adapters.sh
 bash tests/remnawave-nginx-hardening.sh
 bash tests/remnawave-container-audit.sh
 bash tests/common-logging.sh
+bash tests/stage-logging.sh
 bash tests/backup-dry-run.sh
 bash tests/cascade-config.sh
 bash tests/installer-profiles.sh
