@@ -7,6 +7,7 @@ log_dir="$tmp/logs"
 
 run_as_root() {
   if [[ "$EUID" == 0 ]]; then
+    # shellcheck disable=SC2016 # Expand SD_ROOT in the child shell, not this one.
     env SD_ROOT="$ROOT" SD_LOG_DIR="$log_dir" SD_MODE="$1" bash -c 'source "$SD_ROOT/lib/common.sh"; init_logging'
   else
     sudo -n env SD_ROOT="$ROOT" SD_LOG_DIR="$log_dir" SD_MODE="$1" bash -c 'source "$SD_ROOT/lib/common.sh"; init_logging'
