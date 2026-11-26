@@ -59,12 +59,12 @@ persist_bridge_settings(){
  tmp="$(mktemp "${file}.tmp.XXXXXX")"
  awk -v enabled="$1" -v port="$2" '
   BEGIN { seen_enabled = 0; seen_port = 0 }
-  /^SS_BRIDGE_ENABLED=/ { printf "SS_BRIDGE_ENABLED=\\"%s\\"\\n", enabled; seen_enabled = 1; next }
-  /^SS_BRIDGE_PORT=/ { printf "SS_BRIDGE_PORT=\\"%s\\"\\n", port; seen_port = 1; next }
+  /^SS_BRIDGE_ENABLED=/ { printf "SS_BRIDGE_ENABLED=\"%s\"\n", enabled; seen_enabled = 1; next }
+  /^SS_BRIDGE_PORT=/ { printf "SS_BRIDGE_PORT=\"%s\"\n", port; seen_port = 1; next }
   { print }
   END {
-   if (!seen_enabled) printf "SS_BRIDGE_ENABLED=\\"%s\\"\\n", enabled
-   if (!seen_port) printf "SS_BRIDGE_PORT=\\"%s\\"\\n", port
+   if (!seen_enabled) printf "SS_BRIDGE_ENABLED=\"%s\"\n", enabled
+   if (!seen_port) printf "SS_BRIDGE_PORT=\"%s\"\n", port
   }
  ' "$file" > "$tmp"
  chmod --reference="$file" "$tmp"
