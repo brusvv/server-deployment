@@ -54,6 +54,7 @@ sr_ask_port() {
 EOF
 
 before="$(sha256sum "$module" | awk '{print $1}')"
+cp -p "$module" "$tmp/original-server-routing.sh"
 bash "$ROOT/checks/egamesapi-bridge-adapters.sh" --check --config-file "$config" --module "$module" >/dev/null
 after="$(sha256sum "$module" | awk '{print $1}')"
 [[ "$before" == "$after" ]]
@@ -71,4 +72,43 @@ backup_count="$(find "$tmp" -maxdepth 1 -name 'server_routing.sh.before-server-d
 [[ "$backup_count" -ge 2 ]]
 
 bash "$ROOT/checks/egamesapi-bridge-adapters.sh" --check --config-file "$config" --module "$module" >/dev/null
+
+# Inject a failure in the second real apply operation. The combined runner must
+# restore the exact pre-transaction module rather than leave patch one behind.
+failure_dir="$tmp/failure"
+fake_bin="$tmp/fake-bin"
+mkdir -p "$failure_dir" "$fake_bin"
+failure_module="$failure_dir/server_routing.sh"
+cp -p "$tmp/original-server-routing.sh" "$failure_module"
+real_python3="$(command -v python3)"
+cat > "$fake_bin/python3" <<'PY'
+#!/usr/bin/env bash
+if [[ "$1" == "$SD_BRIDGE_PATCH" ]]; then
+  for arg in "$@"; do
+    [[ "$arg" == "--apply" ]] && { echo "Injected bridge patch failure" >&2; exit 42; }
+  done
+fi
+exec "$REAL_PYTHON3" "$@"
+PY
+chmod +x "$fake_bin/python3"
+failure_before="$(sha256sum "$failure_module" | awk '{print $1}')"
+if printf 'APPLY\n' | env PATH="$fake_bin:$PATH" REAL_PYTHON3="$real_python3" \
+  SD_BRIDGE_PATCH="$ROOT/checks/egamesapi-bridge-integration.py" \
+  bash "$ROOT/checks/egamesapi-bridge-adapters.sh" --apply --config-file "$config" --module "$failure_module" \
+  >"$tmp/rollback.out" 2>&1; then
+  echo "Injected second-patch failure unexpectedly succeeded" >&2
+  exit 1
+fi
+failure_after="$(sha256sum "$failure_module" | awk '{print $1}')"
+[[ "$failure_before" == "$failure_after" ]] || {
+  echo "Combined adapter runner did not restore the original module after second-patch failure" >&2
+  cat "$tmp/rollback.out" >&2
+  exit 1
+}
+grep -q "ROLLBACK: original eGamesAPI module restored" "$tmp/rollback.out" || {
+  echo "Rollback confirmation was not reported" >&2
+  cat "$tmp/rollback.out" >&2
+  exit 1
+}
+
 echo "Combined eGamesAPI bridge adapter runner tests passed."
