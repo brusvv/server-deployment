@@ -325,7 +325,9 @@ sudo ./manage.sh
 
 The manager supports:
 
-- Remnawave Panel API connection.
+- Remnawave Panel API connection. The default is the local Backend at `http://127.0.0.1:3000`, matching eGamesAPI's direct API access.
+- For loopback HTTP only, the manager sends `X-Forwarded-For: 127.0.0.1`, `X-Forwarded-Proto: https` and `X-Remnawave-Client-Type: browser`, which Remnawave's proxy check requires. Public/non-loopback HTTP URLs are rejected; remote Panels must use HTTPS through their reverse proxy.
+- The API token is sent as a Bearer header and stored in the root-only state file; it is never embedded in the URL.
 - WARP device registration/re-registration.
 - Adding/updating and disabling the managed outbound in a selected Config Profile.
 - Routing policy: outbound only, unmatched traffic, or selected domains.
