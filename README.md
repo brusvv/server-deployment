@@ -48,7 +48,8 @@ This is a geographic split, not a full tunnel. The bridge is disabled by default
 - It does not reinstall the OS or clean an existing VPS.
 - It does not install a second independent Remnawave stack.
 - It does not execute floating third-party installer branches. The eGamesAPI stage fetches one pinned commit after explicit confirmation; MTProxyL remains an operator-supplied local installer.
-- It does not automatically create the A/B Shadowsocks inbound/outbound, service user/squad, routing rules or firewall allowlist. Those operations remain in the eGamesAPI Server Routing workflow and require operator confirmation.\n- It does not automatically edit Remnawave `customResponseHeaders` or subscription-page branding; remove/replace the dummy `support-url` and customize the `profile-title` value manually in Panel settings.
+- It does not automatically create the A/B Shadowsocks inbound/outbound, service user/squad, routing rules or firewall allowlist. Those operations remain in the eGamesAPI Server Routing workflow and require operator confirmation.
+- It does not automatically edit Remnawave `customResponseHeaders` or subscription-page branding; remove/replace the dummy `support-url` and customize the `profile-title` value manually in Panel settings.
 - It does not automatically mutate the Remnawave inbound for the network adapter.
 - It is not a standalone HAProxy installer. The HAProxy stage expects the MTProxyL-managed custom HAProxy config and service to exist and be active.
 - It does not configure the planned SelfSteal website choices.
