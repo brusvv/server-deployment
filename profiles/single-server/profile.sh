@@ -5,6 +5,7 @@ PROFILE_TITLE="Один сервер"
 PROFILE_DESCRIPTION="Развёртывание компонентов на одной VPS. HAProxy адаптирует уже установленную конфигурацию MTProxyL, а не устанавливается самостоятельно."
 PROFILE_STAGES=(
   preflight
+  backup
   system
   remnawave
   adapter
