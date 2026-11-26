@@ -23,7 +23,6 @@ confirm "I understand the single-server Panel + Node limitation; continue with e
   die "eGamesAPI installation was not confirmed."
 
 have git || die "git is required to retrieve the pinned eGamesAPI source."
-have docker || die "Docker is required to verify the resulting Panel and Node containers."
 
 work_dir="$(mktemp -d /tmp/egamesapi-installer.XXXXXX)"
 cleanup() { rm -rf -- "$work_dir"; }
@@ -51,6 +50,7 @@ info "Launching eGamesAPI $EGAMES_VERSION ($EGAMES_COMMIT)."
 info "Choose menu item 1, then item 1 (Panel + Node on one server)."
 bash "$installer"
 
+have docker || die "eGamesAPI returned without making the Docker CLI available."
 docker ps --format '{{.Names}}' > "$work_dir/running-containers"
 grep -qxE 'remnawave(-db)?' "$work_dir/running-containers" ||
   die "eGamesAPI returned success, but the Remnawave Panel container is not running."
