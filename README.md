@@ -99,7 +99,7 @@ Do not assume A and B have a private network. Verify provider support, routes an
 
 ## Install this branch
 
-Do **not** use the README's historical remote bootstrap pattern for this branch. The bootstrap path in `install.sh` clones `main` when it is run from stdin. Clone the branch explicitly, then execute the local checkout.
+The bootstrap defaults to `main`. To bootstrap this feature branch from a terminal, set `SD_GIT_REF=feature/remnawave-cascade-bridge`; the bootstrap validates that an existing checkout is already on the requested branch and will not switch it automatically. For a reproducible deployment, prefer a reviewed local checkout pinned to a commit.
 
 ```bash
 apt-get update
@@ -139,6 +139,15 @@ sudo ./install.sh --check
 Check-only is the default. It does not install packages, run external installers, register WARP or mutate a Remnawave Config Profile.
 
 ## Installation workflow
+
+When started with no arguments in an interactive terminal, `./install.sh` opens the installation menu:
+
+1. **One server** — runs the single-host profile.
+2. **Remnawave cascade** — asks whether this machine is VPS A (Entry) or VPS B (Panel + Exit).
+
+The selected profile and its stage list are shown before confirmation. **Yes** starts it, **No** returns to the main menu, and **Exit** closes the installer. No system changes are made before the confirmation. Non-interactive no-argument execution remains check-only; explicit CLI commands continue to work as before.
+
+The role profiles intentionally reflect current implementation boundaries. VPS A does not install a Panel or MTProxyL. VPS B owns the Panel/Exit and MTProxyL/HAProxy path. Neither cascade profile automatically creates the live Shadowsocks inbound/outbound, service user/squad, routing rules or firewall allowlist.
 
 The repository stages are deliberately separated:
 
