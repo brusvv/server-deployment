@@ -94,6 +94,59 @@ exit 0
         return bytes(output).decode(errors="replace"), stages, os.waitstatus_to_exitcode(status)
 
 
+def run_bridge_wizard():
+    with tempfile.TemporaryDirectory(prefix="bridge-wizard-test-") as tmp:
+        fixture = pathlib.Path(tmp)
+        (fixture / "lib").mkdir()
+        (fixture / "config").mkdir()
+        (fixture / "bin").mkdir()
+        shutil.copy(ROOT / "install.sh", fixture / "install.sh")
+        shutil.copy(ROOT / "lib" / "common.sh", fixture / "lib" / "common.sh")
+        shutil.copy(ROOT / "lib" / "config.sh", fixture / "lib" / "config.sh")
+        (fixture / "config" / "ports.env").write_text(
+            'SS_BRIDGE_ENABLED="0"\nSS_BRIDGE_PORT="9999"\nPUBLIC_HTTP_PORT="80"\n',
+            encoding="utf-8",
+        )
+        (fixture / "config" / "services.env").write_text("", encoding="utf-8")
+        (fixture / "bin" / "python3").write_text("#!/usr/bin/env bash\nexit 99\n", encoding="utf-8")
+        (fixture / "bin" / "python3").chmod(0o755)
+        env = os.environ.copy()
+        env["PATH"] = str(fixture / "bin") + os.pathsep + env["PATH"]
+        pid, fd = pty.fork()
+        if pid == 0:
+            os.execvpe("bash", ["bash", str(fixture / "install.sh"), "--configure-bridge"], env)
+        os.write(fd, b"y\n24443\n")
+        output = bytearray()
+        deadline = time.time() + 10
+        while time.time() < deadline:
+            try:
+                chunk = os.read(fd, 4096)
+                if not chunk:
+                    break
+                output.extend(chunk)
+            except OSError:
+                break
+            waited, status = os.waitpid(pid, os.WNOHANG)
+            if waited == pid:
+                break
+        else:
+            os.kill(pid, 9)
+            raise AssertionError("bridge wizard timed out")
+        try:
+            _, status = os.waitpid(pid, os.WNOHANG)
+            if status is None:
+                _, status = os.waitpid(pid, 0)
+        except ChildProcessError:
+            pass
+        config = (fixture / "config" / "ports.env").read_text(encoding="utf-8")
+        assert 'SS_BRIDGE_ENABLED="1"' in config, config
+        assert 'SS_BRIDGE_PORT="24443"' in config, config
+        assert 'PUBLIC_HTTP_PORT="80"' in config, config
+        backups = list((fixture / "config").glob("ports.env.before-server-deployment.*"))
+        assert len(backups) == 1, backups
+        assert os.waitstatus_to_exitcode(status) == 0, bytes(output).decode(errors="replace")
+
+
 def assert_case(name, inputs, expected, *, fail="", optional="", expected_code=0, output_contains=()):
     output, stages, code = run_profile(inputs, fail, optional)
     assert stages == expected, f"{name}: stages {stages!r} != {expected!r}\n{output}"
@@ -141,7 +194,8 @@ def main():
         [],
         output_contains=("Установщик закрыт",),
     )
-    print("Installer menu and profile orchestration tests passed.")
+    run_bridge_wizard()
+    print("Installer menu, profile orchestration and bridge wizard tests passed.")
 
 
 if __name__ == "__main__":
