@@ -284,6 +284,35 @@ def get_profile(panel,uuid):
         raise WarpError("Unexpected Config Profile response or UUID mismatch")
     return result
 
+def inspect_profile(panel, uuid):
+    """Read a Config Profile and print a secret-safe structural summary only."""
+    profile = get_profile(panel, uuid)
+    config = profile["config"]
+    inbounds = config.get("inbounds", [])
+    outbounds = config.get("outbounds", [])
+    routing = config.get("routing", {})
+    rules = routing.get("rules", []) if isinstance(routing, dict) else []
+    if not isinstance(inbounds, list) or not isinstance(outbounds, list) or not isinstance(rules, list):
+        raise WarpError("Config Profile contains an unexpected inbound/outbound/routing structure")
+    nodes = profile.get("nodes") or []
+    print("\nConfig Profile read-only inspection")
+    print(f"Name: {profile.get('name', 'unnamed')}")
+    print(f"UUID: {profile['uuid']}")
+    print(f"Attached Nodes: {len(nodes)}")
+    for node in nodes:
+        print(f"  - {node.get('name', 'unnamed')} ({node.get('uuid', 'unknown UUID')})")
+    print(f"Inbounds: {len(inbounds)}")
+    for item in inbounds:
+        if isinstance(item, dict):
+            print(f"  - {item.get('tag', 'untagged')} | {item.get('protocol', 'unknown')} | port {item.get('port', 'unknown')}")
+    print(f"Outbounds: {len(outbounds)}")
+    for item in outbounds:
+        if isinstance(item, dict):
+            print(f"  - {item.get('tag', 'untagged')} | {item.get('protocol', 'unknown')}")
+    print(f"Routing rules: {len(rules)}")
+    print("Secrets and raw config values were not displayed; no changes were made.")
+    return profile
+
 def backup_profile(profile,cfg):
     stamp=dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     path=paths(cfg)["backup"]/str(profile["uuid"])/f"profile-{stamp}.json"
@@ -455,6 +484,7 @@ def menu(cfg):
         print("5. Switch transport (HTTP/2 / HTTP/3)")
         print("6. Disable WARP in Config Profile")
         print("7. Status / endpoint probe")
+        print("8. Inspect Config Profile (read-only)")
         print("0. Back")
         choice=input("Select: ").strip()
         try:
@@ -490,6 +520,9 @@ def menu(cfg):
                 print(f"Managed Config Profiles: {len(managed)}")
                 if creds: print(f"Endpoint: {creds.get('endpoint')}:{cfg['WARP_MASQUE_ENDPOINT_PORT']}; addresses: {', '.join(creds.get('address',[]))}")
                 if creds: probe(cfg)
+            elif choice=="8":
+                panel=get_panel(cfg); profile=select_profile(panel)
+                inspect_profile(panel, profile["uuid"])
             else: print("Unknown selection.")
         except (WarpError,OSError,ValueError,KeyError) as exc: print(f"ERROR: {exc}",file=sys.stderr)
 
