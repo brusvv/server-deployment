@@ -42,7 +42,7 @@ while (($#)); do
   esac
   shift
 done
-printf '%s\\\\n' "$stage" >> "$TEST_STAGE_LOG"
+printf '%s\\\n' "$stage" >> "$TEST_STAGE_LOG"
 if [[ "$stage" == "$TEST_FAIL_STAGE" && -n "$TEST_FAIL_STAGE" ]]; then exit 42; fi
 case " $TEST_OPTIONAL_STAGES " in
   *" $stage "*) exit 10 ;;
@@ -96,40 +96,40 @@ exit 0
 
 def assert_case(name, inputs, expected, *, fail="", optional="", expected_code=0, output_contains=()):
     output, stages, code = run_profile(inputs, fail, optional)
-    assert stages == expected, f"{name}: stages {stages!r} != {expected!r}\\n{output}"
-    assert code == expected_code, f"{name}: exit {code} != {expected_code}\\n{output}"
+    assert stages == expected, f"{name}: stages {stages!r} != {expected!r}\n{output}"
+    assert code == expected_code, f"{name}: exit {code} != {expected_code}\n{output}"
     for phrase in output_contains:
-        assert phrase in output, f"{name}: missing output {phrase!r}\\n{output}"
+        assert phrase in output, f"{name}: missing output {phrase!r}\n{output}"
 
 
 def main():
     assert_case(
         "standard",
-        "1\\n1\\n",
+        "1\n1\n",
         ["preflight", "backup", "system", "remnawave", "validate"],
     )
     assert_case(
         "extended with optional skips",
-        "2\\n1\\n",
+        "2\n1\n",
         ["preflight", "backup", "system", "remnawave", "adapter", "mtproxyl", "haproxy", "validate", "warp-masque"],
         optional="mtproxyl haproxy warp-masque",
         output_contains=("этап mtproxyl: пропущен", "этап haproxy: пропущен", "этап warp-masque: пропущен"),
     )
     assert_case(
         "cascade Entry",
-        "3\\n1\\n1\\n",
+        "3\n1\n1\n",
         ["preflight", "backup", "system", "validate"],
     )
     assert_case(
         "cascade Panel + Exit",
-        "3\\n2\\n1\\n",
+        "3\n2\n1\n",
         ["preflight", "backup", "system", "remnawave", "adapter", "mtproxyl", "haproxy", "validate", "warp-masque"],
         optional="mtproxyl haproxy warp-masque",
         output_contains=("Профиль не следует считать полностью развёрнутым",),
     )
     assert_case(
         "mandatory stage failure stops profile",
-        "1\\n1\\n",
+        "1\n1\n",
         ["preflight", "backup", "system", "remnawave"],
         fail="remnawave",
         expected_code=42,
@@ -137,7 +137,7 @@ def main():
     )
     assert_case(
         "decline profile confirmation",
-        "1\\n2\\n0\\n",
+        "1\n2\n0\n",
         [],
         output_contains=("Установщик закрыт",),
     )
