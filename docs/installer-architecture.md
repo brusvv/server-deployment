@@ -4,7 +4,7 @@
 
 The interactive installer exposes three top-level choices:
 
-1. **Обычная установка Remnawave** — Panel + local Node only, without optional components.
+1. **Обычная установка Remnawave** — eGamesAPI combined Panel + local Node mode (also includes its subscription page and reverse proxy), without additional repository components.
 2. **Remnawave + дополнительные компоненты** — the extended single-host stack with network adapter, MTProxyL, HAProxy integration and optional WARP/MASQUE.
 3. **Каскад Remnawave** — choose the role:
    - **VPS A / Entry** — Russian client-facing node.
