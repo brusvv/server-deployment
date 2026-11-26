@@ -19,3 +19,7 @@ PROFILE_STAGES=(
   validate
   warp-masque
 )
+
+# These components are optional; the core eGamesAPI Panel + Node stage is mandatory.
+# shellcheck disable=SC2034
+PROFILE_OPTIONAL_STAGES=(mtproxyl haproxy warp-masque)
