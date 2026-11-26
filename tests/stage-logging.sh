@@ -56,7 +56,7 @@ if run_installer FAIL_STAGE=1 >"$tmp/failure.out" 2>&1; then
 fi
 mapfile -t logs < <(as_root find "$log_dir" -maxdepth 1 -type f -name 'run-*.log' | sort)
 [[ "${#logs[@]}" -eq 2 ]] || { echo "Expected two stage logs, found ${#logs[@]}" >&2; exit 1; }
-as_root grep -q "MODULE_FAILURE_MARKER" "${logs[1]}" || {
+as_root grep -q "MODULE_FAILURE_MARKER" "${logs[@]}" || {
   echo "Failure output was not captured in the stage log" >&2
   exit 1
 }
