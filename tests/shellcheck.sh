@@ -11,6 +11,7 @@ python3 -m py_compile lib/haproxy_config.py lib/warp_masque.py checks/egamesapi-
 python3 -m py_compile tests/installer-orchestration.py
 python3 tests/installer-orchestration.py
 bash tests/port-discovery.sh
+bash tests/ports-validation.sh
 bash tests/egamesapi-local-exit-compat.sh
 bash tests/egamesapi-bridge-integration.sh
 bash tests/egamesapi-bridge-adapters.sh
