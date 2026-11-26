@@ -61,6 +61,9 @@ def validate_archive(archive: str, allowed_roots: list[str], filesystem_root: st
             if not (member.isfile() or member.isdir() or member.issym()):
                 raise ArchiveValidationError(f"Unsupported archive entry type: {name}")
 
+            if member.mode & 0o7000:
+                raise ArchiveValidationError(f"Special permission bits are not allowed in backups: {name}")
+
             if member.islnk():
                 raise ArchiveValidationError(f"Hard links are not allowed in backups: {name}")
 
@@ -91,6 +94,10 @@ def validate_archive(archive: str, allowed_roots: list[str], filesystem_root: st
                 parent_path = parent_path / part
                 if parent_path.is_symlink():
                     raise ArchiveValidationError(f"Destination parent is a symlink: {parent_path}")
+
+            destination = Path(filesystem_root).joinpath(*parts)
+            if not member.issym() and destination.is_symlink():
+                raise ArchiveValidationError(f"Destination is an existing symlink: {destination}")
 
 
 def main(argv: list[str]) -> int:
