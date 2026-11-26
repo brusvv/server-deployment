@@ -236,7 +236,7 @@ WARP/MASQUE is an optional Xray outbound, independent of HAProxy, MTProxyL and t
 - The installation flow asks whether to configure WARP MASQUE; the default is No.
 - Run sudo ./manage.sh later to register or re-register a WARP MASQUE device, add or remove the outbound in a selected Remnawave Config Profile, choose routing policy, or switch HTTP/2 and HTTP/3.
 - HTTP/2 over TCP/443 is the default. HTTP/3 requires outbound UDP/443.
-- The manager requires Xray-core 26.10.31 or newer and checks the installed local/Remnawave Node binary before applying a profile.
+- The manager requires Xray-core 26.10.31 or newer and checks the installed local/Remnawave Node binary before applying a profile. For safety, it refuses profiles attached to multiple nodes because it cannot independently verify every remote Node's core version.
 - Routing defaults to outbound only: adding the outbound does not redirect user traffic. The operator can explicitly choose unmatched traffic or a list of domains.
 - Before each Config Profile update, the full profile is saved under the configured WARP backup directory. The manager updates the complete config object through the Remnawave API and verifies the result.
 - API credentials and WARP private keys are stored outside the repository with mode 0600; no credentials belong in tracked files.
