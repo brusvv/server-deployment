@@ -158,6 +158,7 @@ def endpoint_host(value):
 def register(cfg):
     print("\nCloudflare WARP MASQUE registration")
     print("The consumer registration endpoint is undocumented and may change.")
+    print("Review Cloudflare WARP Terms: https://www.cloudflare.com/application/terms/")
     print("A new device is created; old registrations are not revoked automatically.")
     if input("Read and accept Cloudflare's Terms of Service? Type ACCEPT: ").strip()!="ACCEPT":
         raise WarpError("Registration cancelled")
