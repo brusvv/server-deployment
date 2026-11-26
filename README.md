@@ -147,7 +147,7 @@ When started with no arguments in an interactive terminal, `./install.sh` opens 
 
 The selected profile and its stage list are shown before confirmation. **Yes** starts it, **No** returns to the main menu, and **Exit** closes the installer. No system changes are made before the confirmation. Non-interactive no-argument execution remains check-only; explicit CLI commands continue to work as before.
 
-The role profiles intentionally reflect current implementation boundaries. VPS A does not install a Panel or MTProxyL. VPS B owns the Panel/Exit and MTProxyL/HAProxy path. Neither cascade profile automatically creates the live Shadowsocks inbound/outbound, service user/squad, routing rules or firewall allowlist.
+The role profiles intentionally reflect current implementation boundaries. VPS A currently performs preflight, a local backup and base-package preparation only; it does not install/register the Remnawave Node or create its VLESS inbound. VPS B owns the Panel/Exit and MTProxyL/HAProxy path. Neither cascade profile automatically creates the live Shadowsocks inbound/outbound, service user/squad, routing rules or firewall allowlist.
 
 The repository stages are deliberately separated:
 
@@ -160,7 +160,7 @@ The repository stages are deliberately separated:
 7. **Validation** — checks domains, ports and services.
 8. **WARP MASQUE** — optional interactive setup; the default answer is No.
 
-The full interactive run asks whether to enable the Shadowsocks bridge and saves the selected settings locally. That wizard does **not** create or remove live bridge components. Answer No for a single-server test or until the A/B bridge has been reviewed.
+The direct command `sudo ./install.sh --run` retains the legacy bridge-settings prompt and saves the selected settings locally. The menu-driven profiles do not toggle this setting automatically. Run `sudo ./install.sh --configure-bridge` separately when preparing the B-side bridge configuration. That wizard does **not** create or remove live bridge components.
 
 ### Run modes and individual stages
 
