@@ -22,6 +22,9 @@ EOF
 printf 'original\n' > "$tmp/remnawave/marker"
 printf 'haproxy\n' > "$tmp/haproxy.cfg"
 
+as_root() {
+  if [[ "$EUID" == 0 ]]; then "$@"; else sudo -n "$@"; fi
+}
 run_backup() {
   if [[ "$EUID" == 0 ]]; then
     env SD_ROOT="$fixture" SD_MODE=run SD_DRY_RUN=0 SD_ASSUME_YES=1 bash "$fixture/backup.sh" "$@"
@@ -32,17 +35,17 @@ run_backup() {
 
 run_backup create
 run_backup create
-archive_count="$(find "$tmp/backups" -maxdepth 1 -type f -name 'server-deployment-*.tar.gz' | wc -l)"
+archive_count="$(as_root find "$tmp/backups" -maxdepth 1 -type f -name 'server-deployment-*.tar.gz' | wc -l)"
 [[ "$archive_count" -eq 2 ]] || { echo "Expected two uniquely named backups, found $archive_count" >&2; exit 1; }
 
-archive="$(find "$tmp/backups" -maxdepth 1 -type f -name 'server-deployment-*.tar.gz' | sort | head -n1)"
+archive="$(as_root find "$tmp/backups" -maxdepth 1 -type f -name 'server-deployment-*.tar.gz' | sort | head -n1)"
 printf 'modified\n' > "$tmp/remnawave/marker"
 run_backup restore "$archive"
 grep -qx 'original' "$tmp/remnawave/marker" || { echo "Restore did not recover original file" >&2; exit 1; }
 
-find "$tmp/backups" -maxdepth 1 -type f -name 'pre-restore-*.tar.gz' | grep -q . || {
+as_root find "$tmp/backups" -maxdepth 1 -type f -name 'pre-restore-*.tar.gz' | grep -q . || {
   echo "Restore did not create a pre-restore safety backup" >&2
   exit 1
 }
-[[ "$(stat -c '%a' "$tmp/backups")" == "700" ]] || { echo "Backup directory permissions are not 0700" >&2; exit 1; }
+[[ "$(as_root stat -c '%a' "$tmp/backups")" == "700" ]] || { echo "Backup directory permissions are not 0700" >&2; exit 1; }
 echo "Backup create/restore tests passed."
