@@ -9,6 +9,7 @@ if [[ -n "$SCRIPT_SOURCE" ]]; then
   SCRIPT_DIR="$(cd -- "$(dirname -- "$SCRIPT_SOURCE")" 2>/dev/null && pwd -P)"
 fi
 REPO_URL="${SD_REPO_URL:-https://github.com/brusvv/server-deployment.git}"
+REPO_REF="${SD_GIT_REF:-main}"
 INSTALL_DIR="${SD_INSTALL_DIR:-/opt/server-deployment}"
 
 if [[ ! -f "$SCRIPT_DIR/lib/common.sh" ]]; then
@@ -28,10 +29,16 @@ if [[ ! -f "$SCRIPT_DIR/lib/common.sh" ]]; then
   else
     mkdir -p "$(dirname -- "$INSTALL_DIR")"
     echo "Cloning server-deployment into $INSTALL_DIR ..."
-    git clone --depth 1 --branch main "$REPO_URL" "$INSTALL_DIR"
+    git clone --depth 1 --branch "$REPO_REF" "$REPO_URL" "$INSTALL_DIR"
   fi
 
   exec bash "$INSTALL_DIR/install.sh" "$@"
+fi
+
+# No-argument interactive launch opens the profile menu. Non-interactive and
+# explicit CLI invocations retain the existing check/run behavior.
+if (($# == 0)) && [[ -t 0 && -t 1 ]] && [[ -f "$SCRIPT_DIR/installer/main.sh" ]]; then
+  exec bash "$SCRIPT_DIR/installer/main.sh"
 fi
 
 ROOT_DIR="$SCRIPT_DIR"
