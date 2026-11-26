@@ -8,7 +8,7 @@ Configure internal loopback listeners first; do not bind public 80/443 until HAP
 EOF
 if [[ -n "${MTPROXYL_INSTALLER_LOCAL:-}" ]]; then
  [[ -f "$MTPROXYL_INSTALLER_LOCAL" ]] || die "Installer file not found"
- if confirm "Run reviewed local MTProxyL installer?"; then bash "$MTPROXYL_INSTALLER_LOCAL"; fi
+ if confirm "Run reviewed local MTProxyL installer?"; then bash "$MTPROXYL_INSTALLER_LOCAL"; else exit 10; fi
 else
- warn "Set MTPROXYL_INSTALLER_LOCAL to enable this hand-off."
+ warn "Set MTPROXYL_INSTALLER_LOCAL to enable this optional hand-off."; exit 10
 fi
