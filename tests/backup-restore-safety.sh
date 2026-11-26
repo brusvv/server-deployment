@@ -48,4 +48,32 @@ as_root find "$tmp/backups" -maxdepth 1 -type f -name 'pre-restore-*.tar.gz' | g
   exit 1
 }
 [[ "$(as_root stat -c '%a' "$tmp/backups")" == "700" ]] || { echo "Backup directory permissions are not 0700" >&2; exit 1; }
+
+# Refuse recursive backup locations and filesystem-root backup targets.
+cat > "$fixture/config/services.env" <<EOF
+REMNAWAVE_DIR="$tmp/remnawave"
+MTProxyL_DIR="$tmp/mtproxyl"
+HAPROXY_CONFIG="$tmp/mtproxyl/haproxy.cfg"
+BACKUP_DIR="$tmp/mtproxyl/backups"
+STATE_DIR="$tmp/state"
+EOF
+if run_backup create >"$tmp/nested-backup.out" 2>&1; then
+  echo "Backup directory nested inside MTProxyL was unexpectedly accepted" >&2
+  exit 1
+fi
+grep -q "BACKUP_DIR must not be inside a path being backed up" "$tmp/nested-backup.out"
+
+cat > "$fixture/config/services.env" <<EOF
+REMNAWAVE_DIR="/"
+MTProxyL_DIR="$tmp/mtproxyl"
+HAPROXY_CONFIG="$tmp/mtproxyl/haproxy.cfg"
+BACKUP_DIR="$tmp/backups"
+STATE_DIR="$tmp/state"
+EOF
+if run_backup create >"$tmp/root-backup.out" 2>&1; then
+  echo "Filesystem root backup target was unexpectedly accepted" >&2
+  exit 1
+fi
+grep -q "absolute non-root path" "$tmp/root-backup.out"
+
 echo "Backup create/restore tests passed."
