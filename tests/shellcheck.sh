@@ -12,6 +12,7 @@ bash tests/port-discovery.sh
 bash tests/egamesapi-local-exit-compat.sh
 bash tests/egamesapi-bridge-integration.sh
 bash tests/egamesapi-bridge-adapters.sh
+bash tests/remnawave-nginx-hardening.sh
 bash tests/cascade-config.sh
 bash tests/installer-profiles.sh
 python3 tests/warp-masque.py
