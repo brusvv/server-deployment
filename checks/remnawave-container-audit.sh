@@ -28,7 +28,7 @@ for container in "${required_containers[@]}"; do
 done
 
 wait_for_healthy() {
-  local container="$1" attempt health
+  local container="$1" health
   for _ in {1..40}; do
     health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container")" ||
       die "Cannot inspect health status: $container"
