@@ -86,7 +86,7 @@ installer/
   runtime.sh
 profiles/
   remnawave-standard/profile.sh
-  single-server/profile.sh (extended profile)
+  remnawave-extended/profile.sh
   remnawave-cascade/entry.sh
   remnawave-cascade/exit-panel.sh
 modules/
