@@ -212,3 +212,23 @@ sudo ./install.sh --check --stage validate
 ```
 
 These results should be collected before any port/profile/service changes. The eGames site-template DLC itself is not implemented yet.
+
+## VM check results — 2026-11-26 23:55 UTC
+
+Operator ran `sudo ./install.sh --check --stage preflight`, `haproxy`, and `validate` on the disposable Ubuntu VM.
+
+Observed results:
+- All configured domains resolved successfully.
+- TCP/80 was free.
+- TCP/443 was occupied by `rw-core` (Xray), consistent with the earlier listener snapshot.
+- Shadowsocks bridge checks were skipped because the bridge is disabled.
+- HAProxy check skipped because MTProxyL active HAProxy config, binary, or settings were not found.
+- Validation warned that `remnanode` and `mtproxyl-haproxy.service` were not found as systemd units.
+
+Interpretation:
+- The `remnanode not found` warning is a diagnostic false negative for this deployment: Node is a Docker container, not necessarily a systemd unit. `checks/services.sh` currently checks only `systemctl list-unit-files`; it should inspect Docker containers when the configured service hint refers to a container.
+- The HAProxy check result does not establish that MTProxyL is absent from disk; it only establishes that the configured active HAProxy integration prerequisites were not found by this stage.
+- The current public 443 listener must not be moved until a replacement frontend is configured, validated, and ready to bind.
+- The duplicate domain-resolution lines arise because preflight/validation invoke domain checks through more than one path; consider de-duplicating output when improving diagnostics.
+
+Next: inspect MTProxyL paths, unit files and processes read-only; do not install HAProxy or change Xray's 443 listener yet.
