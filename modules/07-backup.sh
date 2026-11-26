@@ -6,7 +6,6 @@ source "$SD_ROOT/lib/config.sh"
 load_config
 require_root
 action="${1:-create}"
-install -d -m 0700 "$BACKUP_DIR"
 case "$action" in
  create)
   stamp="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -14,6 +13,11 @@ case "$action" in
   paths=()
   for path in "$REMNAWAVE_DIR" "${MTProxyL_DIR:-/opt/mtproxyl}" "$HAPROXY_CONFIG" "$SD_ROOT/config"; do [[ -e "$path" ]] && paths+=("$path"); done
   (("${#paths[@]}")) || die "No configured paths exist to back up"
+  if [[ "$SD_DRY_RUN" == "1" ]]; then
+   info "Dry-run: would create backup $archive from: ${paths[*]}"
+   exit 0
+  fi
+  install -d -m 0700 "$BACKUP_DIR"
   tar --numeric-owner -czf "$archive" "${paths[@]}"
   chmod 0600 "$archive"
   info "Backup created: $archive"
