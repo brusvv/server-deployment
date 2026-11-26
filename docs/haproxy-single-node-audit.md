@@ -140,3 +140,30 @@ The exact mechanism and current hook point have not yet been established. Treat 
 6. Test both a fresh install and a rerun/update path; verify failure is visible and does not leave the installer claiming success with the wrong site.
 
 No corrective code change has been made yet; first trace the actual installer and identify the intended transformation function/hook.
+
+
+## Proposed product architecture: DLC / add-ons
+
+The operator prefers a dedicated **DLC (add-ons)** section over a single eGames post-install customization hook. The reason is that more project-specific additions are expected later, and some may eventually be automated.
+
+### Intended lifecycle
+
+1. Install the upstream eGamesAPI component and its stock website template as part of the base installation.
+2. Expose a separate DLC/add-ons menu after the base component is installed.
+3. Provide a project-owned website-template DLC that transforms/customizes the stock eGames template into the project's games website.
+4. Allow future DLCs to add other project-specific website features or integrations without coupling them to the base eGames installer.
+
+The website-template DLC should be repeatable, detect whether eGames is installed, validate the expected upstream template/version before modifying it, back up files it changes, and verify the resulting games website. It should not silently run against an unknown document root or overwrite unrelated operator content.
+
+### Design considerations (proposal, not implemented)
+
+- Keep base eGames installation and project DLC lifecycle separate.
+- Each DLC should have clear metadata: identifier, display name, description, prerequisites, install/update/remove/check actions, and compatibility requirements.
+- Provide a shared DLC dispatcher/menu rather than adding one-off menu branches for every future add-on.
+- Make install/update/check/remove operations explicit and idempotent where possible.
+- Track installed DLC state and version so the installer can report status and safely update/remove additions.
+- Separate upstream-owned files from project-owned overlays/patches; prefer managed overlays or narrowly scoped transformations over uncontrolled recursive replacement.
+- Add a non-mutating check/dry-run path and backups/rollback for file-changing actions.
+- Keep automatic post-install application optional until dependency ordering and failure handling are defined. The initial user-facing flow can be: install eGames base, then explicitly install the project games-template DLC. Later, automate this hand-off after the base install succeeds.
+
+This is an architectural direction agreed in discussion, not a claim that a DLC framework already exists in the repository. Before implementation, inspect the current menu, module registry, eGames installer and website file layout, then fit the DLC dispatcher into the existing project conventions.
