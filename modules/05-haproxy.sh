@@ -255,7 +255,7 @@ confirm_tty "Apply the selected port layout and Remnawave SNI routing to $config
  exit 10
 }
 
-backup="${config}.before-server-deployment.$(date -u +%Y%m%dT%H%M%SZ)"
+backup="${config}.before-server-deployment.$(date -u +%Y%m%dT%H%M%SZ).${BASHPID}"
 cp -a -- "$config" "$backup"
 chmod go-rwx "$backup" 2>/dev/null || true
 new_file="${config}.server-deployment-new.$$"
