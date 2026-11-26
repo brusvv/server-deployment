@@ -22,7 +22,7 @@ case "$action" in
   chmod 0600 "$archive"
   info "Backup created: $archive"
   ;;
- list) find "$BACKUP_DIR" -maxdepth 1 -type f -name '*.tar.gz' -printf '%TY-%Tm-%Td %TH:%TM %p\n' | sort;;
+ list) [[ -d "$BACKUP_DIR" ]] || exit 0; find "$BACKUP_DIR" -maxdepth 1 -type f -name '*.tar.gz' -printf '%TY-%Tm-%Td %TH:%TM %p\n' | sort;;
  restore)
   [[ -n "${2:-}" && -f "$2" ]] || die "Usage: $0 restore /path/to/archive.tar.gz"
   tar -tzf "$2"
