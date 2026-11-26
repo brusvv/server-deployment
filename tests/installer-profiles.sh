@@ -11,7 +11,7 @@ source "$ROOT/profiles/remnawave-standard/profile.sh"
 [[ ! " ${PROFILE_STAGES[*]} " =~ " warp-masque " ]]
 [[ ! " ${PROFILE_STAGES[*]} " =~ " adapter " ]]
 
-source "$ROOT/profiles/single-server/profile.sh"
+source "$ROOT/profiles/remnawave-extended/profile.sh"
 [[ "$PROFILE_ID" == "remnawave-extended" ]]
 [[ "${PROFILE_STAGES[*]}" == "preflight backup system remnawave adapter mtproxyl haproxy validate warp-masque" ]]
 
