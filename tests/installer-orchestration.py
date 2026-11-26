@@ -62,7 +62,7 @@ exit 0
         pid, fd = pty.fork()
         if pid == 0:
             if os.geteuid() != 0:
-                os.execvpe("sudo", ["sudo", "-E", "-n", "bash", str(fixture / "installer" / "main.sh")], env)
+                os.execvpe("sudo", ["sudo", "-n", "env", f"TEST_STAGE_LOG={log}", f"TEST_FAIL_STAGE={fail_stage}", f"TEST_OPTIONAL_STAGES={optional_stages}", "bash", str(fixture / "installer" / "main.sh")], env)
             os.execvpe("bash", ["bash", str(fixture / "installer" / "main.sh")], env)
 
         os.write(fd, inputs.encode())
