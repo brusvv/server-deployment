@@ -46,6 +46,8 @@ The suite covers:
 - Preflight port validation rejects malformed/out-of-range public ports, duplicate HTTP/HTTPS ports and bridge/public-port collisions. If `ss` is unavailable before the System stage installs `iproute2`, preflight reports that occupancy checks were skipped rather than claiming ports are free.
 - Bridge-settings wizard is exercised in normal and `--dry-run` modes; the test stubs Python to prove the writer uses only the base shell utilities.
 - Backup-stage dry-run reports the planned paths without creating a backup directory or archive.
+- Backup archive unit tests reject traversal, out-of-scope paths, unsafe symlinks, hard links, privileged permission bits and pre-existing destination symlinks. Backup creation deduplicates nested configured paths (for example, the HAProxy config already covered by the MTProxyL directory).
+- Backup create/restore integration test creates two archives in one second, restores a known file and verifies a pre-restore snapshot. Restore is file-only; if extraction fails, the pre-restore archive is retained for manual recovery.
 
 These tests do not execute privileged package installation or the external eGamesAPI installer.
 
