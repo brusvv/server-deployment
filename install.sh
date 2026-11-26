@@ -20,7 +20,13 @@ if [[ ! -f "$SCRIPT_DIR/lib/common.sh" ]]; then
 
   if [[ -e "$INSTALL_DIR" ]]; then
     if [[ -f "$INSTALL_DIR/lib/common.sh" && -d "$INSTALL_DIR/.git" ]]; then
-      echo "Using existing checkout: $INSTALL_DIR"
+      existing_ref="$(git -C "$INSTALL_DIR" branch --show-current)"
+      if [[ "$existing_ref" != "$REPO_REF" ]]; then
+        echo "ERROR: existing checkout is on '$existing_ref', but SD_GIT_REF requests '$REPO_REF'." >&2
+        echo "Switch the checkout explicitly or use another SD_INSTALL_DIR." >&2
+        exit 1
+      fi
+      echo "Using existing checkout: $INSTALL_DIR ($existing_ref)"
     else
       echo "ERROR: $INSTALL_DIR exists but is not a server-deployment checkout." >&2
       echo "Set SD_INSTALL_DIR to another path or move the existing directory." >&2
