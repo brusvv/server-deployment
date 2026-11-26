@@ -102,7 +102,7 @@ Do not assume A and B have a private network. Verify provider support, routes an
 
 ## Install this branch
 
-The bootstrap defaults to `main`. To bootstrap this feature branch from a terminal, set `SD_GIT_REF=feature/remnawave-fingerprint-hardening`; the bootstrap validates that an existing checkout is already on the requested branch and will not switch it automatically. For a reproducible deployment, prefer a reviewed local checkout pinned to a commit.
+The bootstrap defaults to `main`. To bootstrap this feature branch from a terminal, set `SD_GIT_REF=feature/remnawave-fingerprint-hardening`. If the requested branch already exists in `SD_INSTALL_DIR`, bootstrap checks for local modifications, fetches the requested remote branch and fast-forwards a clean checkout. It refuses dirty checkouts, branch mismatches and diverged histories; it never silently discards local work. For a reproducible deployment, prefer a reviewed local checkout pinned to a commit.
 
 ```bash
 apt-get update
