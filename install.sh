@@ -151,7 +151,7 @@ if [[ "$MODE" == "run" && "$STAGE" == "all" && -t 0 && -t 1 ]]; then
  set +a
 fi
 init_logging
-run_stage(){ local name="$1" file="$2"; info "===== $name ====="; bash "$ROOT_DIR/modules/$file"; }
+run_stage(){ local name="$1" file="$2"; info "===== $name ====="; if [[ -n "$_log_file" ]]; then bash "$ROOT_DIR/modules/$file" 2>&1 | tee -a "$_log_file"; else bash "$ROOT_DIR/modules/$file"; fi; }
 if [[ "$STAGE" == all ]]; then
  run_stage preflight 00-preflight.sh
  if [[ "$MODE" == run ]]; then
