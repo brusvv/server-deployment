@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034
-# Current single-host orchestration sequence.
+# Extended single-host profile with optional proxy and routing integrations.
 # shellcheck disable=SC2034
-PROFILE_ID="single-server"
+PROFILE_ID="remnawave-extended"
 # shellcheck disable=SC2034
-PROFILE_TITLE="Один сервер"
+PROFILE_TITLE="Remnawave + дополнительные компоненты"
 # shellcheck disable=SC2034
-PROFILE_DESCRIPTION="Развёртывание компонентов на одной VPS. HAProxy адаптирует уже установленную конфигурацию MTProxyL, а не устанавливается самостоятельно."
+PROFILE_DESCRIPTION="Расширенное развёртывание на одной VPS: Remnawave Panel + Node, сетевой адаптер, MTProxyL, HAProxy и опциональный WARP/MASQUE. HAProxy адаптирует уже установленную конфигурацию MTProxyL, а не устанавливается самостоятельно."
 # shellcheck disable=SC2034
 PROFILE_STAGES=(
   preflight
