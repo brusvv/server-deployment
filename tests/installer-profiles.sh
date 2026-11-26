@@ -12,6 +12,6 @@ source "$ROOT/profiles/remnawave-cascade/entry.sh"
 
 source "$ROOT/profiles/remnawave-cascade/exit-panel.sh"
 [[ "$PROFILE_ID" == "remnawave-cascade-exit-panel" ]]
-[[ "${PROFILE_STAGES[*]}" == "preflight system remnawave adapter mtproxyl haproxy validate warp-masque" ]]
+[[ "${PROFILE_STAGES[*]}" == "preflight backup system remnawave adapter mtproxyl haproxy validate warp-masque" ]]
 
 printf 'Installer profile tests passed.\n'
