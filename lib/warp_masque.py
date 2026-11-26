@@ -316,6 +316,8 @@ def enable_flow(cfg):
     if not creds: register_or_replace(cfg); creds=read_json(p["creds"],{})
     if not creds: raise WarpError("No WARP credentials available")
     panel=get_panel(cfg); profile=select_profile(panel)
+    previous=read_json(p["managed"],{}).get(profile["uuid"],{})
+    cfg["WARP_MASQUE_TRANSPORT"]=previous.get("transport",cfg["WARP_MASQUE_TRANSPORT"])
     print("\nRouting policy: 0=outbound only (default), 1=unmatched traffic, 2=selected domains")
     choice=input("Select [0/1/2]: ").strip() or "0"
     if choice=="0": mode,domains="none",[]
