@@ -2,6 +2,8 @@
 # Interactive scenario selection. This file only selects a profile; it never
 # performs system changes.
 set -Eeuo pipefail
+# Profile path is consumed by installer/main.sh after this file is sourced.
+# shellcheck disable=SC2034
 
 installer_menu_read() {
   local prompt="$1" answer
@@ -26,7 +28,6 @@ installer_menu_select_profile() {
     case "$choice" in
       1)
         INSTALL_PROFILE_FILE="$SD_ROOT/profiles/single-server/profile.sh"
-        INSTALL_PROFILE_ROLE="single"
         return 0
         ;;
       2)
@@ -39,12 +40,10 @@ installer_menu_select_profile() {
           case "$role" in
             1)
               INSTALL_PROFILE_FILE="$SD_ROOT/profiles/remnawave-cascade/entry.sh"
-              INSTALL_PROFILE_ROLE="entry"
               return 0
               ;;
             2)
               INSTALL_PROFILE_FILE="$SD_ROOT/profiles/remnawave-cascade/exit-panel.sh"
-              INSTALL_PROFILE_ROLE="exit-panel"
               return 0
               ;;
             0) break ;;
