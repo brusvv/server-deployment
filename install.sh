@@ -159,6 +159,7 @@ run_stage(){ local name="$1" file="$2"; info "===== $name ====="; bash "$ROOT_DI
 if [[ "$STAGE" == all ]]; then
  run_stage preflight 00-preflight.sh
  if [[ "$MODE" == run ]]; then
+  run_stage backup 07-backup.sh
   run_stage system 01-system.sh; run_stage remnawave 02-remnawave.sh
   run_stage adapter 03-network-adapter.sh; run_stage mtproxyl 04-mtproxyl.sh
   run_stage haproxy 05-haproxy.sh; run_stage validate 06-validation.sh; run_stage warp-masque 08-warp-masque.sh
