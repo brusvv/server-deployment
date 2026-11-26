@@ -164,7 +164,7 @@ The repository stages are deliberately separated:
 7. **Validation** — checks domains, ports and services.
 8. **WARP MASQUE** — optional interactive setup; the default answer is No.
 
-The direct command `sudo ./install.sh --run` retains the legacy bridge-settings prompt and saves the selected settings locally. The menu-driven profiles do not toggle this setting automatically. Run `sudo ./install.sh --configure-bridge` separately when preparing the B-side bridge configuration. That wizard does **not** create or remove live bridge components.
+The direct command `sudo ./install.sh --run` retains the legacy bridge-settings prompt and saves the selected settings locally. Its full stage sequence now creates the project backup immediately after preflight and before system/package changes. The menu-driven profiles do not toggle this setting automatically. Run `sudo ./install.sh --configure-bridge` separately when preparing the B-side bridge configuration. That wizard does **not** create or remove live bridge components.
 
 ### Run modes and individual stages
 
