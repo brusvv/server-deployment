@@ -2,10 +2,11 @@
 
 ## Deployment choices
 
-The interactive installer exposes two top-level choices:
+The interactive installer exposes three top-level choices:
 
-1. **Single server** — one VPS running the single-host stack.
-2. **Remnawave cascade** — choose the role:
+1. **Обычная установка Remnawave** — Panel + local Node only, without optional components.
+2. **Remnawave + дополнительные компоненты** — the extended single-host stack with network adapter, MTProxyL, HAProxy integration and optional WARP/MASQUE.
+3. **Каскад Remnawave** — choose the role:
    - **VPS A / Entry** — Russian client-facing node.
    - **VPS B / Panel + Exit** — foreign Panel host and local Exit Node.
 
@@ -24,7 +25,8 @@ The interactive installer exposes two top-level choices:
 
 | Profile | Stage sequence |
 |---|---|
-| Single server | preflight → backup → system → remnawave → adapter → mtproxyl → haproxy → validate → warp-masque |
+| Standard Remnawave | preflight → backup → system → remnawave → validate |
+| Extended Remnawave | preflight → backup → system → remnawave → adapter → mtproxyl → haproxy → validate → warp-masque |
 | Cascade A / Entry | preflight → backup → system → validate |
 | Cascade B / Panel + Exit | preflight → backup → system → remnawave → adapter → mtproxyl → haproxy → validate → warp-masque |
 
@@ -83,7 +85,8 @@ installer/
   dispatcher.sh
   runtime.sh
 profiles/
-  single-server/profile.sh
+  remnawave-standard/profile.sh
+  single-server/profile.sh (extended profile)
   remnawave-cascade/entry.sh
   remnawave-cascade/exit-panel.sh
 modules/
