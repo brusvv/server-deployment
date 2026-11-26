@@ -7,7 +7,11 @@ wm=importlib.util.module_from_spec(spec); sys.modules[spec.name]=wm; spec.loader
 cfg=dict(wm.DEFAULTS)
 creds={"privateKey":"PRIVATE","publicKey":"PUBLIC","address":["172.16.0.2/32"],"endpoint":"162.159.198.2"}
 out=wm.build_outbound(creds,cfg,"h2")
-assert out["protocol"]=="masque" and out["streamSettings"]["method"]=="masque"
+assert out["protocol"]=="masque"
+assert out["streamSettings"]["network"]=="masque"
+assert "method" not in out["streamSettings"]
+assert out["streamSettings"]["security"]=="tls"
+assert "warp" in out["streamSettings"]["masqueSettings"]
 assert out["streamSettings"]["tlsSettings"]["alpn"]==["h2"]
 assert wm.build_outbound(creds,cfg,"h3")["streamSettings"]["tlsSettings"]["alpn"]==["h3"]
 assert wm.build_rule("all","warp-masque")=={"type":"field","outboundTag":"warp-masque"}

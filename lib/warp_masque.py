@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULTS = {
     "WARP_MASQUE_TRANSPORT": "h2", "WARP_MASQUE_TAG": "warp-masque",
     "WARP_MASQUE_ENDPOINT_PORT": "443", "WARP_MASQUE_SERVER_NAME": "consumer-masque.cloudflareclient.com",
-    "WARP_MASQUE_API_URL": "https://api.devices.cloudflare.com/v0a4471/reg",
+    "WARP_MASQUE_API_URL": "https://api.cloudflareclient.com/v0a4471/reg",
     "WARP_MASQUE_CLIENT_VERSION": "a-6.35-4471", "WARP_MASQUE_MIN_XRAY_VERSION": "26.10.31",
     "WARP_MASQUE_STATE_DIR": "/var/lib/server-deployment/warp-masque",
     "WARP_MASQUE_BACKUP_DIR": "/var/backups/server-deployment/warp-masque",
@@ -166,10 +166,10 @@ def register(cfg):
     base=cfg["WARP_MASQUE_API_URL"].rstrip("/")
     headers={"User-Agent":"WARP for Android","CF-Client-Version":cfg["WARP_MASQUE_CLIENT_VERSION"],
              "Accept":"application/json","Content-Type":"application/json"}
-    tos=dt.datetime.now(dt.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00","Z")
+    tos=dt.datetime.now(dt.timezone.utc).isoformat(timespec="milliseconds")
     first=http_json(base,"POST",headers,{
         "key":base64.b64encode(secrets.token_bytes(32)).decode(),"install_id":"","fcm_token":"",
-        "tos":tos,"model":"PC","serial_number":base64.b64encode(secrets.token_bytes(8)).decode(),
+        "tos":tos,"model":"PC","serial_number":secrets.token_bytes(8).hex(),
         "os_version":"10","key_type":"curve25519","tunnel_type":"wireguard","locale":"en_US"})
     device,token=first.get("id"),first.get("token")
     if not device or not token: raise WarpError("Cloudflare registration returned no device id/token")
@@ -196,9 +196,10 @@ def build_outbound(creds,cfg,transport=None):
     if transport not in ("h2","h3"): raise WarpError("Transport must be h2 or h3")
     return {"tag":cfg["WARP_MASQUE_TAG"],"protocol":"masque",
         "settings":{"address":creds["endpoint"],"port":int(cfg["WARP_MASQUE_ENDPOINT_PORT"])},
-        "streamSettings":{"method":"masque","masqueSettings":{"warp":{
-            "privateKey":creds["privateKey"],"publicKey":creds["publicKey"],"address":creds["address"]}},
-            "security":"tls","tlsSettings":{"serverName":cfg["WARP_MASQUE_SERVER_NAME"],"alpn":[transport]}}}
+        "streamSettings":{"network":"masque","security":"tls",
+            "tlsSettings":{"serverName":cfg["WARP_MASQUE_SERVER_NAME"],"alpn":[transport]},
+            "masqueSettings":{"warp":{
+                "privateKey":creds["privateKey"],"publicKey":creds["publicKey"],"address":creds["address"]}}}}
 
 def build_rule(mode,tag,domains=None):
     if mode=="none": return None
@@ -234,6 +235,19 @@ def backup_profile(profile,cfg):
     stamp=dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     path=paths(cfg)["backup"]/str(profile["uuid"])/f"profile-{stamp}.json"
     save_json(path,profile); print(f"Profile backup: {path}")
+
+def confirm_single_node_scope(profile):
+    nodes=profile.get("nodes") or []
+    if len(nodes)!=1:
+        raise WarpError(f"WARP profile changes require exactly one attached Node; found {len(nodes)}. Split shared profiles before proceeding.")
+    node=nodes[0]
+    node_name=node.get("name") or node.get("uuid") or "unnamed Node"
+    node_uuid=node.get("uuid","unknown UUID")
+    print(f"Selected Config Profile: {profile.get('name')} ({profile.get('uuid')})")
+    print(f"Attached Node: {node_name} ({node_uuid})")
+    print("The manager cannot independently prove this Node is the VPS where it is running.")
+    if input("Confirm this is the local VPS Node? Type LOCAL: ").strip()!="LOCAL":
+        raise WarpError("Local Node confirmation failed; no profile changes were made.")
 
 def patch_profile(panel,profile,config,cfg):
     backup_profile(profile,cfg)
@@ -273,10 +287,7 @@ def update_profile(panel,uuid,creds,cfg,mode,domains=None):
         insert_before_fallback(rules,rule)
     if any(isinstance(x,dict) and x.get("outboundTag")==tag and x!=rule for x in rules):
         raise WarpError("Other routing rules reference the WARP tag; resolve them manually")
-    nodes=profile.get("nodes") or []
-    if len(nodes)>1:
-        names=", ".join(n.get("name","?") for n in nodes)
-        raise WarpError("This profile is attached to multiple nodes ("+names+"). This manager verifies only the local Node; use a single-node profile or verify every attached Node separately.")
+    confirm_single_node_scope(profile)
     patch_profile(panel,profile,config,cfg)
     managed[uuid]={"profileName":profile.get("name",""),"outbound":outbound,"rule":rule,
                    "transport":cfg["WARP_MASQUE_TRANSPORT"],"routeMode":mode,"domains":domains or []}
@@ -286,7 +297,9 @@ def update_profile(panel,uuid,creds,cfg,mode,domains=None):
 def disable_profile(panel,uuid,cfg):
     p=paths(cfg); managed=read_json(p["managed"],{}); record=managed.get(uuid)
     if not record: raise WarpError("Profile is not managed by this tool")
-    profile=get_profile(panel,uuid); config=json.loads(json.dumps(profile["config"])); tag=cfg["WARP_MASQUE_TAG"]
+    profile=get_profile(panel,uuid)
+    confirm_single_node_scope(profile)
+    config=json.loads(json.dumps(profile["config"])); tag=cfg["WARP_MASQUE_TAG"]
     outbounds=config.get("outbounds",[])
     found=[x for x in outbounds if isinstance(x,dict) and x.get("tag")==tag]
     if len(found)!=1 or found[0]!=record.get("outbound"): raise WarpError("Managed outbound missing/modified; refusing cleanup")

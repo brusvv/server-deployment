@@ -242,6 +242,7 @@ WARP/MASQUE is an optional Xray outbound, independent of HAProxy, MTProxyL and t
 - API credentials and WARP private keys are stored outside the repository with mode 0600; no credentials belong in tracked files.
 - The consumer registration endpoint is undocumented/reverse-engineered and may change. Registration requires an explicit typed acknowledgement of Cloudflare's Terms of Service. Re-registering creates a new device; it does not automatically revoke an old Cloudflare registration.
 - The manager refuses to overwrite an existing warp-masque outbound or remove profile rules it cannot prove it owns.
+- Profile changes require exactly one attached Node and explicit operator confirmation that it is the Node on the local VPS. The manager cannot independently verify the Node's physical host identity; shared profiles are rejected.
 
 Copy config/warp-masque.env.example to config/warp-masque.env to override defaults. No WARP registration or Remnawave profile mutation occurs in check-only mode.
 
