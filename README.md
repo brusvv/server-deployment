@@ -92,7 +92,7 @@ Before changing an existing server, save the audit output and make an independen
 
 - Debian or Ubuntu; other distributions are not supported by preflight.
 - Root access for execution stages.
-- Python 3, Bash and the utilities installed by the System stage.
+- Python 3 (installed by the System stage), Bash and the other utilities installed by the System stage.
 - DNS records for the configured domains.
 - Public TCP 80/443 available when deploying the B-side web/HAProxy stack.
 - Network access to GitHub for the pinned eGamesAPI source; an operator-reviewed local MTProxyL installer if that optional component is selected.
@@ -375,7 +375,7 @@ Run the repository test suite from the checkout:
 bash tests/shellcheck.sh
 ```
 
-CI runs shell checks, Python compilation and the repository regression tests on pushes and pull requests.
+CI runs shell checks, Python compilation, local regression tests and a pseudo-terminal simulation of all four installer profiles (including optional-stage skips and mandatory-stage failure handling). The full disposable-VM integration matrix is documented in [the installer validation plan](docs/installer-validation-plan.md); CI does not install eGamesAPI or modify a live VPS.
 
 ## Project layout
 
