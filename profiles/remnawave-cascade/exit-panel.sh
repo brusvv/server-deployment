@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2034
 # VPS B hosts the Panel and local Exit Node, plus the separate MTProxy stack.
 PROFILE_ID="remnawave-cascade-exit-panel"
 PROFILE_TITLE="Каскад Remnawave — VPS B / Panel + Exit"
