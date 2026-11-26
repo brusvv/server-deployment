@@ -81,6 +81,8 @@ sudo bash checks/cascade-audit.sh B
 
 Use the matching role argument on the matching VPS. The audit reports OS/resources, interfaces/routes, listening sockets, relevant systemd units, Docker names/images/status/ports and firewall state.
 
+On VPS B the audit also checks `/opt/remnawave/nginx.conf` for `server_tokens off;`, validates the `remnawave-nginx` config with `nginx -t`, and prints a manual checklist for Remnawave subscription response headers. It does not query Panel credentials or subscription UUIDs.
+
 The audit deliberately does not read secrets, service environment variables, Docker environment variables or process command lines. Its output can still contain public/private IP addresses, hostnames and firewall source addresses. Review and redact it before sharing.
 
 Before changing an existing server, save the audit output and make an independent backup of important application data and configuration. The project backup is not a substitute for a full VPS/provider snapshot.
