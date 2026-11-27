@@ -206,7 +206,7 @@ sudo ./manage.sh
 
 Choose **2. Перенос пользователей Remnawave**. The migration menu provides:
 
-1. **Перенос пользователей Remnawave** — exports users from the local `/opt/remnawave` Panel and creates them on an already running target Panel through its HTTPS API. It validates source records and squad mapping, checks target username/short UUID conflicts, supports Dry-run and requires an explicit `yes` before Apply. A protected JSONL journal records source-to-target user ID mappings.
+1. **Перенос пользователей Remnawave** — exports users from the configured local Panel (`REMNAWAVE_DIR`, default `/opt/remnawave`) and creates them on an already running target Panel through its HTTPS API. It validates source records and squad mapping, checks target username/short UUID conflicts, supports Dry-run and requires an explicit `yes` before Apply. A protected JSONL journal records source-to-target user ID mappings.
 2. **Аудит связанных данных Remnawave (только чтение)** — reports related-table aggregates and checks user/node mapping and orphan references without writing to either database.
 
 The target Panel must already exist. Create the required Internal Squads there with the same names as on the source. API scopes and exact migration coverage, limitations and safety behavior are documented in [the migration guide](docs/remnawave-user-migration.md).
