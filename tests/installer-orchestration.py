@@ -110,6 +110,65 @@ exit 0
 
 
 
+
+def run_language_selector():
+    with tempfile.TemporaryDirectory(prefix="installer-language-test-") as tmp:
+        fixture = pathlib.Path(tmp)
+        (fixture / "installer" / "lang").mkdir(parents=True)
+        shutil.copy(ROOT / "installer" / "main.sh", fixture / "installer" / "main.sh")
+        shutil.copy(ROOT / "installer" / "menu.sh", fixture / "installer" / "menu.sh")
+        for lang in ("ru.sh", "en.sh"):
+            shutil.copy(ROOT / "installer" / "lang" / lang, fixture / "installer" / "lang" / lang)
+        config_home = fixture / "xdg"
+        env = os.environ.copy()
+        env.pop("SD_LANGUAGE", None)
+        env.pop("SUDO_USER", None)
+        env["HOME"] = str(fixture)
+        env["XDG_CONFIG_HOME"] = str(config_home)
+
+        def launch(inputs: bytes):
+            pid, fd = pty.fork()
+            if pid == 0:
+                os.execvpe("bash", ["bash", str(fixture / "installer" / "main.sh")], env)
+            os.write(fd, inputs)
+            output = bytearray()
+            status = None
+            deadline = time.time() + 10
+            while time.time() < deadline:
+                try:
+                    chunk = os.read(fd, 4096)
+                    if not chunk:
+                        break
+                    output.extend(chunk)
+                except OSError:
+                    break
+                waited, status = os.waitpid(pid, os.WNOHANG)
+                if waited == pid:
+                    break
+            else:
+                os.kill(pid, 9)
+                raise AssertionError("language selector timed out")
+            try:
+                waited, final_status = os.waitpid(pid, os.WNOHANG)
+                if waited == pid:
+                    status = final_status
+                elif waited == 0:
+                    _, status = os.waitpid(pid, 0)
+            except ChildProcessError:
+                pass
+            rendered = bytes(output).decode(errors="replace")
+            assert status is not None and os.waitstatus_to_exitcode(status) == 0, rendered
+            return rendered
+
+        first = launch(b"1\\n0\\n")
+        preference = config_home / "server-deployment" / "selected_language"
+        assert preference.read_text(encoding="utf-8").strip() == "en"
+        assert preference.stat().st_mode & 0o777 == 0o600
+        assert "LANGUAGE SELECTION" in first and "MAIN MENU" in first
+        second = launch(b"0\\n")
+        assert "LANGUAGE SELECTION" not in second
+        assert "MAIN MENU" in second
+
 def run_management_menu(language: str = "en"):
     with tempfile.TemporaryDirectory(prefix="management-menu-test-") as tmp:
         fixture = pathlib.Path(tmp)
@@ -272,6 +331,7 @@ def main():
         [],
         output_contains=("Установщик закрыт",),
     )
+    run_language_selector()
     run_management_menu("en")
     run_management_menu("ru")
     run_bridge_wizard()
