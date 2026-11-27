@@ -2,7 +2,7 @@
 # Import user accounts through the target Remnawave API; never overwrite target DB.
 remnawave_users_migrate() (
     header "Перенос пользователей Remnawave"
-    local panel_dir="/opt/remnawave"
+    local panel_dir="${REMNAWAVE_DIR:-/opt/remnawave}"
     [ -f "$panel_dir/docker-compose.yml" ] || { err "Исходная панель не найдена"; return 1; }
     for cmd in docker jq curl; do command -v "$cmd" >/dev/null 2>&1 || { err "Не найдена зависимость: $cmd"; return 1; }; done
 
@@ -262,7 +262,7 @@ remnawave_users_migrate() (
 # is performed here; the target IDs are obtained from read-only API responses.
 remnawave_users_related_audit() (
     header "Аудит связанных данных Remnawave (только чтение)"
-    local panel_dir="/opt/remnawave"
+    local panel_dir="${REMNAWAVE_DIR:-/opt/remnawave}"
     [ -f "$panel_dir/docker-compose.yml" ] || { err "Исходная панель не найдена"; return 1; }
     for cmd in docker jq curl; do command -v "$cmd" >/dev/null 2>&1 || { err "Не найдена зависимость: $cmd"; return 1; }; done
 
