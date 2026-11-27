@@ -10,7 +10,13 @@ _menu_reset() { [[ "$_menu_use_color" == "1" ]] && printf '\033[0m'; return 0; }
 _menu_t() { printf '%s' "${MENU_TEXT[$1]:-$1}"; }
 
 _menu_load_language() {
-  local selected="${SD_LANGUAGE:-}" file="${XDG_CONFIG_HOME:-$HOME/.config}/server-deployment/selected_language"
+  local selected="${SD_LANGUAGE:-}" user_home="${HOME:-/root}" config_home file
+  if [[ -n "${SUDO_USER:-}" ]]; then
+    user_home="$(getent passwd "$SUDO_USER" 2>/dev/null | cut -d: -f6 || true)"
+    user_home="${user_home:-/root}"
+  fi
+  config_home="${XDG_CONFIG_HOME:-$user_home/.config}"
+  file="$config_home/server-deployment/selected_language"
   if [[ "$selected" != "ru" && "$selected" != "en" ]]; then
     if [[ -r "$file" ]]; then IFS= read -r selected < "$file" || true; fi
   fi
