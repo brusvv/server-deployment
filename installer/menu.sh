@@ -15,7 +15,7 @@ _menu_load_language() {
     user_home="$(getent passwd "$SUDO_USER" 2>/dev/null | cut -d: -f6 || true)"
     user_home="${user_home:-/root}"
   fi
-  config_home="${XDG_CONFIG_HOME:-$user_home/.config}"
+  if [[ -n "${SUDO_USER:-}" ]]; then config_home="$user_home/.config"; else config_home="${XDG_CONFIG_HOME:-$user_home/.config}"; fi
   file="$config_home/server-deployment/selected_language"
   if [[ "$selected" != "ru" && "$selected" != "en" ]]; then
     if [[ -r "$file" ]]; then IFS= read -r selected < "$file" || true; fi
