@@ -78,6 +78,10 @@ def main() -> None:
         ])
         check(duplicate, False)
 
+        empty = folder / "empty.tar.gz"
+        make_archive(empty, [])
+        check(empty, False)
+
         symlink = folder / "archive-link.tar.gz"
         symlink.symlink_to(valid)
         check(symlink, False)
