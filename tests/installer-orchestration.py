@@ -17,11 +17,14 @@ def run_profile(inputs: str, fail_stage: str = "", optional_stages: str = ""):
     with tempfile.TemporaryDirectory(prefix="installer-profile-test-") as tmp:
         fixture = pathlib.Path(tmp)
         (fixture / "installer").mkdir()
+        (fixture / "installer" / "lang").mkdir()
         (fixture / "profiles" / "remnawave-standard").mkdir(parents=True)
         (fixture / "profiles" / "remnawave-extended").mkdir(parents=True)
         (fixture / "profiles" / "remnawave-cascade").mkdir(parents=True)
         shutil.copy(ROOT / "installer" / "main.sh", fixture / "installer" / "main.sh")
         shutil.copy(ROOT / "installer" / "menu.sh", fixture / "installer" / "menu.sh")
+        for lang in ("ru.sh", "en.sh"):
+            shutil.copy(ROOT / "installer" / "lang" / lang, fixture / "installer" / "lang" / lang)
         for rel in (
             "profiles/remnawave-standard/profile.sh",
             "profiles/remnawave-extended/profile.sh",
@@ -58,6 +61,7 @@ exit 0
             TEST_STAGE_LOG=str(log),
             TEST_FAIL_STAGE=fail_stage,
             TEST_OPTIONAL_STAGES=optional_stages,
+            SD_LANGUAGE="ru",
         )
         pid, fd = pty.fork()
         if pid == 0:
@@ -178,33 +182,33 @@ def assert_case(name, inputs, expected, *, fail="", optional="", expected_code=0
 def main():
     assert_case(
         "standard",
-        "1\n1\n",
+        "1\n1\n1\n",
         ["preflight", "backup", "system", "remnawave", "validate"],
-        output_contains=("SERVER DEPLOYMENT", "СОСТОЯНИЕ СЕРВЕРА", "Одиночный сервер", "ПОДТВЕРЖДЕНИЕ УСТАНОВКИ", "До подтверждения изменения системы не выполняются"),
+        output_contains=("SERVER DEPLOYMENT", "ГЛАВНОЕ МЕНЮ", "Установка", "СОСТОЯНИЕ СЕРВЕРА", "Одиночный сервер", "ПОДТВЕРЖДЕНИЕ УСТАНОВКИ", "До подтверждения изменения системы не выполняются"),
     )
     assert_case(
         "extended with optional skips",
-        "2\n1\n",
+        "1\n2\n1\n",
         ["preflight", "backup", "system", "remnawave", "adapter", "mtproxyl", "haproxy", "validate", "warp-masque"],
         optional="mtproxyl haproxy warp-masque",
         output_contains=("Расширенная установка", "Результат этапа mtproxyl: пропущен", "Результат этапа haproxy: пропущен", "Результат этапа warp-masque: пропущен"),
     )
     assert_case(
         "cascade Entry",
-        "3\n1\n1\n",
+        "1\n3\n1\n1\n",
         ["preflight", "backup", "system", "validate"],
         output_contains=("КАСКАДНАЯ УСТАНОВКА", "VPS A — Entry", "VPS B — Panel + Exit"),
     )
     assert_case(
         "cascade Panel + Exit",
-        "3\n2\n1\n",
+        "1\n3\n2\n1\n",
         ["preflight", "backup", "system", "remnawave", "adapter", "mtproxyl", "haproxy", "validate", "warp-masque"],
         optional="mtproxyl haproxy warp-masque",
         output_contains=("Профиль не следует считать полностью развёрнутым",),
     )
     assert_case(
         "mandatory stage failure stops profile",
-        "1\n1\n",
+        "1\n1\n1\n",
         ["preflight", "backup", "system", "remnawave"],
         fail="remnawave",
         expected_code=42,
@@ -212,7 +216,7 @@ def main():
     )
     assert_case(
         "decline profile confirmation",
-        "1\n2\n0\n",
+        "1\n1\n2\n0\n",
         [],
         output_contains=("Установщик закрыт",),
     )
