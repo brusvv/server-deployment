@@ -6,7 +6,7 @@ Safety-first deployment helpers and integration adapters for a Remnawave two-nod
 
 ## Branch and scope
 
-This README describes **`feature/remnawave-fingerprint-hardening`**. It supersedes the older HTTP-redirect/SelfSteal feature-branch instructions.
+This README describes **`feature/menu-redesign`**. It supersedes the older HTTP-redirect/SelfSteal feature-branch instructions.
 
 The target topology is:
 
@@ -102,14 +102,14 @@ Do not assume A and B have a private network. Verify provider support, routes an
 
 ## Install this branch
 
-The bootstrap defaults to `main`. To bootstrap this feature branch from a terminal, set `SD_GIT_REF=feature/remnawave-fingerprint-hardening`; the bootstrap validates that an existing checkout is already on the requested branch and will not switch it automatically. For a reproducible deployment, prefer a reviewed local checkout pinned to a commit.
+The bootstrap defaults to `main`. To bootstrap this feature branch from a terminal, set `SD_GIT_REF=feature/menu-redesign`; the bootstrap validates that an existing checkout is already on the requested branch and will not switch it automatically. For a reproducible deployment, prefer a reviewed local checkout pinned to a commit.
 
 ```bash
 apt-get update
 apt-get install -y git
 
 git clone --depth 1 \
-  --branch feature/remnawave-fingerprint-hardening \
+  --branch feature/menu-redesign \
   https://github.com/brusvv/server-deployment.git \
   /opt/server-deployment
 
@@ -149,7 +149,7 @@ When started with no arguments in an interactive terminal, `./install.sh` first 
 2. **Remnawave + дополнительные компоненты** — the extended single-host profile with the network adapter, MTProxyL, HAProxy integration and optional WARP/MASQUE.
 3. **Каскад Remnawave** — asks whether this machine is VPS A (Entry) or VPS B (Panel + Exit).
 
-The selected profile and its stage list are shown before confirmation. **Yes** starts it, **No** returns to the main menu, and **Exit** closes the installer. No system changes are made before the confirmation. Required system preparation and eGamesAPI installation have their own confirmations and fail closed on refusal. Optional stages use a distinct skipped status. Non-interactive no-argument execution remains check-only; explicit CLI commands continue to work as before.
+The selected profile and its stage list are shown before confirmation. **Yes** starts it, **No** returns to profile selection, and **Exit** closes the installer. No system changes are made before the confirmation. Required system preparation and eGamesAPI installation have their own confirmations and fail closed on refusal. Optional stages use a distinct skipped status. Non-interactive no-argument execution remains check-only; explicit CLI commands continue to work as before.
 
 **Reproducibility limitation:** pinning the eGamesAPI installer commit does not pin all runtime artifacts. The pinned combined installer generates Docker Compose references including `remnawave/backend:3`, `remnawave/subscription-page:latest`, `remnawave/node:latest`, `postgres:18.6`, `valkey/valkey:9.1.2-alpine` and `nginx:1.30`; these are tags, not immutable digests. eGamesAPI also sets `SOURCE_BRANCH=main` for fallback downloads when a bundled `src/` module or language file is missing. The local bundled `src/` takes precedence, but the commit pin alone does not guarantee every fallback is pinned. The container audit records actual image IDs/digests for each deployment; before claiming reproducible production deployment, freeze and review the exact image digests and any fallback downloads.
 
