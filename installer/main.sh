@@ -6,31 +6,40 @@ export SD_ROOT="$ROOT_DIR"
 
 source "$ROOT_DIR/installer/menu.sh"
 
-while true; do
-  if installer_menu_select_profile; then
-    [[ -f "$INSTALL_PROFILE_FILE" ]] || {
-      printf 'ERROR: installation profile not found: %s\n' "$INSTALL_PROFILE_FILE" >&2
-      exit 1
-    }
-    # shellcheck disable=SC1090
-    source "$INSTALL_PROFILE_FILE"
+installer_menu_select_language() {
+  while ! _menu_load_language; do
+    _menu_warn "Choose 1 or 2."
+  done
+}
 
-    if installer_menu_confirm_profile; then
-      break
-    else
-      result=$?
-      if (( result == 2 )); then
-        printf '\nУстановщик закрыт.\n'
-        exit 0
+installer_menu_select_language
+
+while true; do
+  if installer_menu_main; then
+    while true; do
+      if installer_menu_select_profile; then
+        [[ -f "$INSTALL_PROFILE_FILE" ]] || {
+          printf 'ERROR: installation profile not found: %s\n' "$INSTALL_PROFILE_FILE" >&2
+          exit 1
+        }
+        # shellcheck disable=SC1090
+        source "$INSTALL_PROFILE_FILE"
+        if installer_menu_confirm_profile; then
+          break 2
+        else
+          result=$?
+          if (( result == 2 )); then printf '\n%s\n' "$(_menu_t closed)"; exit 0; fi
+        fi
+      else
+        result=$?
+        if (( result == 2 )); then break; fi
       fi
-      continue
-    fi
+    done
   else
     result=$?
-    if (( result == 2 )); then
-      printf '\nУстановщик закрыт.\n'
-      exit 0
-    fi
+    if (( result == 2 )); then printf '\n%s\n' "$(_menu_t closed)"; exit 0; fi
+    printf '\n%s\n' "$(_menu_t management_start)"
+    bash "$ROOT_DIR/manage.sh" || true
   fi
 done
 
