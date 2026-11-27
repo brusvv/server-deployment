@@ -21,9 +21,13 @@ def _relative_root(value: str) -> pathlib.PurePosixPath:
 def validate_archive(archive: pathlib.Path, roots: list[str]) -> None:
     allowed = [_relative_root(root) for root in roots]
     seen: set[pathlib.PurePosixPath] = set()
+    regular_files = 0
 
     with tarfile.open(archive, mode="r:gz") as bundle:
-        for member in bundle.getmembers():
+        members = bundle.getmembers()
+        if not members:
+            raise ValueError("Backup archive is empty")
+        for member in members:
             raw = pathlib.PurePosixPath(member.name)
             if raw.is_absolute() or not raw.parts or ".." in raw.parts:
                 raise ValueError(f"Unsafe archive path: {member.name!r}")
@@ -41,6 +45,11 @@ def validate_archive(archive: pathlib.Path, roots: list[str]) -> None:
             # and directories.
             if not (member.isdir() or member.isfile()):
                 raise ValueError(f"Unsupported archive member type: {member.name!r}")
+            if member.isfile():
+                regular_files += 1
+
+    if regular_files == 0:
+        raise ValueError("Backup archive contains no regular files")
 
 
 def main() -> int:
