@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2034
 declare -gA MENU_TEXT=(
   [brand]="SERVER DEPLOYMENT"
   [subtitle]="/ INSTALLATION MANAGER"
