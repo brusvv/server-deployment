@@ -9,7 +9,7 @@ while true; do
   printf '0. Exit\n'
   read -r -p "Select: " choice
   case "$choice" in
-    1) python3 "$ROOT_DIR/lib/warp_masque.py" menu ;;
+    1) python3 "$ROOT_DIR/lib/warp_masque.py" menu ;;\n    2) bash "$ROOT_DIR/modules/09-remnawave-user-migration.sh" ;;
     0) exit 0 ;;
     *) echo "Unknown selection." ;;
   esac
