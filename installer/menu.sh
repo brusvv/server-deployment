@@ -5,7 +5,7 @@ set -Eeuo pipefail
 _menu_use_color=0
 if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then _menu_use_color=1; fi
 
-_menu_style() { [[ "$_menu_use_color" == "1" ]] && printf '\033[%sm' "$1"; }
+_menu_style() { if [[ "$_menu_use_color" == "1" ]]; then printf '\033[%sm' "$1"; fi; }
 _menu_reset() { [[ "$_menu_use_color" == "1" ]] && printf '\033[0m'; return 0; }
 _menu_t() { printf '%s' "${MENU_TEXT[$1]:-$1}"; }
 
