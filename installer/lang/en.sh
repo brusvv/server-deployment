@@ -66,4 +66,5 @@ declare -gA MENU_TEXT=(
   [manage_failed]="Operation failed."
   [manage_root_required]="Run the installer with sudo to manage this server."
   [manage_invalid]="Invalid selection."
+  [press_enter]="Press Enter to continue..."
 )
