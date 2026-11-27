@@ -41,7 +41,7 @@ This is a geographic split, not a full tunnel. The bridge is disabled by default
 - Optional HTTP → HTTPS redirects and ACME HTTP-01 routing in the HAProxy adapter.
 - Guarded eGamesAPI patchers for the Panel + local Exit topology and the optional bridge toggle/port policy.
 - Optional Cloudflare WARP over Xray MASQUE outbound management through Remnawave Config Profiles.
-- Project-managed backup create/list/restore actions.
+- Project-managed backup create/list/restore actions.\n- Remnawave user migration between an existing source Panel and an existing target Panel, plus a read-only audit of related data.
 
 ### What it does not do automatically
 
