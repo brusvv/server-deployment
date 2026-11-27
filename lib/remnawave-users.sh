@@ -49,7 +49,7 @@ remnawave_users_migrate() (
     pg_user="${pg_user:-postgres}"
     pg_db="${pg_db:-postgres}"
     sql="SELECT json_build_object('users', COALESCE((
-      SELECT json_agg((to_jsonb(u) || jsonb_build_object('id',u.id::text,'active_squad_names',
+      SELECT json_agg((to_jsonb(u) || jsonb_build_object('id',u.id::text,'traffic_limit_bytes',u.traffic_limit_bytes::text,'telegram_id',u.telegram_id::text,'hwid_device_limit',u.hwid_device_limit::text,'active_squad_names',
         COALESCE((SELECT json_agg(s.name ORDER BY s.name)
           FROM internal_squad_members m JOIN internal_squads s ON s.uuid=m.internal_squad_uuid
           WHERE m.user_id=u.id), '[]'::json))) ORDER BY u.id) FROM users u
@@ -76,8 +76,9 @@ remnawave_users_migrate() (
           elif (($u.id|type) != "string") or (($u.id|test("^[0-9]+$")|not)) then error("invalid source user id")
           elif $u.expire_at == null then error("missing expiration")
           elif ($u.short_uuid == null or $u.short_uuid == "") then error("missing short UUID")
-          elif (($u.traffic_limit_bytes|tonumber? // 0) > 9007199254740991) then error("traffic limit exceeds JS safe integer")
-          elif ($u.telegram_id != null and (($u.telegram_id|tonumber? // 0) > 9007199254740991)) then error("telegram id exceeds JS safe integer")
+          elif ($u.traffic_limit_bytes != null and (($u.traffic_limit_bytes|test("^[0-9]+$")|not) or (($u.traffic_limit_bytes|tonumber) > 9007199254740991))) then error("invalid or unsafe traffic limit")
+          elif ($u.telegram_id != null and (($u.telegram_id|test("^[0-9]+$")|not) or (($u.telegram_id|tonumber) > 9007199254740991))) then error("invalid or unsafe telegram id")
+          elif ($u.hwid_device_limit != null and (($u.hwid_device_limit|test("^[0-9]+$")|not) or (($u.hwid_device_limit|tonumber) > 9007199254740991))) then error("invalid or unsafe HWID device limit")
           elif ($u.trojan_password != null and (($u.trojan_password|length)<8 or ($u.trojan_password|length)>32)) then error("invalid trojan password")
           elif ($u.ss_password != null and (($u.ss_password|length)<8 or ($u.ss_password|length)>32)) then error("invalid shadowsocks password")
           elif ($mapped|length) != ($names|length) then error("target squad missing") else
@@ -85,12 +86,12 @@ remnawave_users_migrate() (
             sourceUserId:$u.id,
             username:$u.username, status:$u.status, shortUuid:$u.short_uuid,
             trojanPassword:$u.trojan_password, vlessUuid:$u.vless_uuid, ssPassword:$u.ss_password,
-            trafficLimitBytes:($u.traffic_limit_bytes|tonumber? // 0),
+            trafficLimitBytes:($u.traffic_limit_bytes|if . == null then null else tonumber end),
             trafficLimitStrategy:$u.traffic_limit_strategy, expireAt:$u.expire_at,
             createdAt:$u.created_at, lastTrafficResetAt:$u.last_traffic_reset_at,
             description:$u.description, tag:($u.tag | if . == "" then null else . end),
-            telegramId:($u.telegram_id|if . == null then null else (tonumber? // .) end),
-            email:$u.email, hwidDeviceLimit:($u.hwid_device_limit|tonumber? // 0),
+            telegramId:($u.telegram_id|if . == null then null else tonumber end),
+            email:$u.email, hwidDeviceLimit:($u.hwid_device_limit|if . == null then null else tonumber end),
             activeInternalSquads:$mapped
           } | with_entries(select(.value != null)) end
         ' "$source_json" >> "$payloads" 2>/dev/null; then
