@@ -123,7 +123,7 @@ remnawave_users_migrate() (
     : > "$target_matches"
     local value check_code line source_id target_id
     while IFS= read -r line; do
-        value=$(printf '%s' "$line" | jq -r '.username')
+        value=$(printf '%s' "$line" | jq -r '.username | @uri')
         check_code=$(curl -sS --connect-timeout 8 --max-time 20 -o "$response" -w '%{http_code}' \
             -K "$auth_config" "$target_url/api/users/by-username/$value") || check_code="000"
         if [ "$check_code" = "200" ]; then
@@ -139,7 +139,7 @@ remnawave_users_migrate() (
                 return 1
             fi
             source_id=$(printf '%s' "$line" | jq -r '.sourceUserId')
-            target_id=$(jq -er '.response.id | select(type == "number")' "$response" 2>/dev/null) || {
+            target_id=$(jq -er '.response.id | select(type == "number" and . <= 9007199254740991)' "$response" 2>/dev/null) || {
                 err "Целевой API не вернул числовой ID для $value"; return 1;
             }
             jq -cn --argjson source_user_id "$source_id" --argjson target_user_id "$target_id" \
@@ -224,7 +224,7 @@ remnawave_users_migrate() (
             -H 'Content-Type: application/json' -H 'Accept: application/json' --data-binary "@$body") || http_code="000"
         target_user_id=""
         if [[ "$http_code" = "200" || "$http_code" = "201" ]]; then
-            target_user_id=$(jq -er '.response.id | select(type == "number")' "$response" 2>/dev/null) || target_user_id=""
+            target_user_id=$(jq -er '.response.id | select(type == "number" and . <= 9007199254740991)' "$response" 2>/dev/null) || target_user_id=""
             if [ -n "$target_user_id" ]; then
                 created=$((created+1)); result_status="CREATED"; ok "Создан: $username (source ID $source_user_id -> target ID $target_user_id)"
             else
@@ -357,13 +357,14 @@ remnawave_users_related_audit() (
     [ "$http_code" = "200" ] || { err "API нод вернул HTTP $http_code (нужен scope nodes:list)"; return 1; }
     jq -e '.response|type=="array"' "$nodes_json" >/dev/null 2>&1 || { err "Неожиданный формат списка нод"; return 1; }
 
-    local users_total users_mapped users_unmapped user_line username node_total node_mapped node_unmapped node_line
+    local users_total users_mapped users_unmapped user_line username username_encoded node_total node_mapped node_unmapped node_line
     users_total=$(jq '.users|length' "$source_json")
     users_mapped=0; users_unmapped=0
     while IFS= read -r user_line; do
         username=$(printf '%s' "$user_line" | jq -r '.username')
+        username_encoded=$(printf '%s' "$username" | jq -sRr @uri)
         http_code=$(curl -sS --connect-timeout 8 --max-time 20 -o "$response" -w '%{http_code}' \
-            -K "$auth_config" "$target_url/api/users/by-username/$username") || http_code="000"
+            -K "$auth_config" "$target_url/api/users/by-username/$username_encoded") || http_code="000"
         if [ "$http_code" = "200" ] && jq -e --argjson source "$user_line" '
             .response as $target |
             ($target.id|type=="number" and . <= 9007199254740991) and
