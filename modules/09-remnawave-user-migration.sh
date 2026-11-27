@@ -4,6 +4,8 @@ set -Eeuo pipefail
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 export SD_ROOT="$ROOT_DIR"
 source "$SD_ROOT/lib/common.sh"
+source "$SD_ROOT/lib/config.sh"
+load_config
 source "$SD_ROOT/lib/remnawave-users.sh"
 
 header() {
