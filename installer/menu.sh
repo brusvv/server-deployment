@@ -24,12 +24,12 @@ _menu_load_language() {
   if [[ -z "$selected" ]]; then
     _menu_title "$( _menu_t language_title )"
     printf '\n  %s\n\n' "$(_menu_t language_prompt)"
-    _menu_option '1.' 'Русский'
-    _menu_option '2.' 'English'
+    _menu_option '1.' 'English'
+    _menu_option '2.' 'Русский'
     printf '\n'
     local choice
     choice="$(installer_menu_read '  Select [1/2]: ')" || return 1
-    case "$choice" in 1) selected=ru ;; 2) selected=en ;; *) _menu_warn "$(_menu_t invalid)"; return 1 ;; esac
+    case "$choice" in 1) selected=en ;; 2) selected=ru ;; *) _menu_warn "$(_menu_t invalid)"; return 1 ;; esac
     mkdir -p "$(dirname "$file")"
     chmod 700 "$(dirname "$file")"
     printf '%s\n' "$selected" > "$file"
