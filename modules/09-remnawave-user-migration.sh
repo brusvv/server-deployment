@@ -22,6 +22,7 @@ require_root
 for command_name in docker jq curl; do
   have "$command_name" || die "Required command not found: $command_name"
 done
+docker compose version >/dev/null 2>&1 || die "Docker Compose plugin is required"
 
 while true; do
   printf '\n=== Server Deployment — Remnawave ===\n'
