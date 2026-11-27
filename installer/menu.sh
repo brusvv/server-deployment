@@ -146,10 +146,19 @@ installer_menu_select_profile() {
 }
 
 installer_menu_confirm_profile() {
-  local choice
+  local choice title_key desc_key
+  case "$PROFILE_ID" in
+    remnawave-standard) title_key=profile_standard_title; desc_key=profile_standard_desc ;;
+    remnawave-extended) title_key=profile_extended_title; desc_key=profile_extended_desc ;;
+    remnawave-cascade-entry) title_key=profile_entry_title; desc_key=profile_entry_desc ;;
+    remnawave-cascade-exit-panel) title_key=profile_exit_title; desc_key=profile_exit_desc ;;
+    *) title_key=; desc_key= ;;
+  esac
   _menu_title "$(_menu_t confirm_title)"
-  printf '\n'; _menu_style '1;37'; printf '  %s\n' "$PROFILE_TITLE"; _menu_reset
-  printf '  %s\n' "$PROFILE_DESCRIPTION"
+  printf '\n'; _menu_style '1;37'
+  if [[ -n "$title_key" ]]; then printf '  %s\n' "$(_menu_t "$title_key")"; else printf '  %s\n' "$PROFILE_TITLE"; fi
+  _menu_reset
+  if [[ -n "$desc_key" ]]; then printf '  %s\n' "$(_menu_t "$desc_key")"; else printf '  %s\n' "$PROFILE_DESCRIPTION"; fi
   _menu_section "$(_menu_t stages)"
   printf '  %s\n' "$(_menu_t required_stages)"
   printf '  - %s\n' "${PROFILE_STAGES[@]}"
