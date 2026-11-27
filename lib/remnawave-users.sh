@@ -128,15 +128,62 @@ remnawave_users_migrate() (
         check_code=$(curl -sS --connect-timeout 8 --max-time 20 -o "$response" -w '%{http_code}' \
             -K "$auth_config" "$target_url/api/users/by-username/$value") || check_code="000"
         if [ "$check_code" = "200" ]; then
-            if ! jq -e --argjson source "$line" '
+            # A username/protocol match is not enough for reconciliation: a
+            # prior partial/manual import may have different limits, expiry,
+            # status or squad membership. Compare every field sent to CreateUser.
+            local source_expire_ms target_expire_ms source_created_ms target_created_ms
+            local source_reset_ms target_reset_ms
+            source_expire_ms=$(date -u -d "$(printf '%s' "$line" | jq -r '.expireAt')" '+%s%3N') || {
+                err "Не удалось разобрать исходный expireAt для $value"; return 1;
+            }
+            target_expire_ms=$(date -u -d "$(jq -r '.response.expireAt // empty' "$response")" '+%s%3N') || {
+                err "Целевой API вернул некорректный expireAt для $value"; return 1;
+            }
+            source_created_ms=""; target_created_ms=""
+            if printf '%s' "$line" | jq -e 'has("createdAt")' >/dev/null; then
+                source_created_ms=$(date -u -d "$(printf '%s' "$line" | jq -r '.createdAt')" '+%s%3N') || {
+                    err "Не удалось разобрать исходный createdAt для $value"; return 1;
+                }
+                target_created_ms=$(date -u -d "$(jq -r '.response.createdAt // empty' "$response")" '+%s%3N') || {
+                    err "Целевой API вернул некорректный createdAt для $value"; return 1;
+                }
+            fi
+            source_reset_ms=""; target_reset_ms=""
+            if printf '%s' "$line" | jq -e 'has("lastTrafficResetAt")' >/dev/null; then
+                source_reset_ms=$(date -u -d "$(printf '%s' "$line" | jq -r '.lastTrafficResetAt')" '+%s%3N') || {
+                    err "Не удалось разобрать исходный lastTrafficResetAt для $value"; return 1;
+                }
+                target_reset_ms=$(date -u -d "$(jq -r '.response.lastTrafficResetAt // empty' "$response")" '+%s%3N') || {
+                    err "Целевой API вернул некорректный lastTrafficResetAt для $value"; return 1;
+                }
+            fi
+            if ! jq -e --argjson source "$line" \
+                --arg source_expire_ms "$source_expire_ms" --arg target_expire_ms "$target_expire_ms" \
+                --arg source_created_ms "$source_created_ms" --arg target_created_ms "$target_created_ms" \
+                --arg source_reset_ms "$source_reset_ms" --arg target_reset_ms "$target_reset_ms" '
+                def same_if_sent($key):
+                    (($source | has($key)) | not) or ($target[$key] == $source[$key]);
                 .response as $target |
-                ($target.username == $source.username) and
-                ($target.shortUuid == $source.shortUuid) and
-                ($target.vlessUuid == $source.vlessUuid) and
-                ($target.trojanPassword == $source.trojanPassword) and
-                ($target.ssPassword == $source.ssPassword)
+                same_if_sent("username") and
+                same_if_sent("shortUuid") and
+                same_if_sent("vlessUuid") and
+                same_if_sent("trojanPassword") and
+                same_if_sent("ssPassword") and
+                same_if_sent("status") and
+                same_if_sent("trafficLimitBytes") and
+                same_if_sent("trafficLimitStrategy") and
+                same_if_sent("telegramId") and
+                same_if_sent("email") and
+                same_if_sent("description") and
+                same_if_sent("tag") and
+                same_if_sent("hwidDeviceLimit") and
+                ($source_expire_ms == $target_expire_ms) and
+                ($source_created_ms == "" or $source_created_ms == $target_created_ms) and
+                ($source_reset_ms == "" or $source_reset_ms == $target_reset_ms) and
+                (($target.activeInternalSquads // [] | map(.uuid) | sort) ==
+                 ($source.activeInternalSquads // [] | sort))
             ' "$response" >/dev/null 2>&1; then
-                err "На целевой панели найден $value, но его идентификаторы не совпадают с исходными. Автоматическое продолжение запрещено."
+                err "На целевой панели найден $value, но данные пользователя отличаются от исходных. Автоматическое продолжение запрещено."
                 return 1
             fi
             source_id=$(printf '%s' "$line" | jq -r '.sourceUserId')
