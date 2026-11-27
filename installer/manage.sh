@@ -5,6 +5,11 @@ ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 export SD_ROOT="$ROOT_DIR"
 
 source "$ROOT_DIR/installer/menu.sh"
+source "$ROOT_DIR/installer/lang/en.sh"
+
+while ! _menu_load_language; do
+  _menu_warn "$(_menu_t invalid)"
+done
 
 if [[ "${EUID:-$(id -u)}" != 0 ]]; then
   _menu_warn "$(_menu_t manage_root_required)"
@@ -13,11 +18,12 @@ fi
 
 source "$ROOT_DIR/lib/common.sh"
 source "$ROOT_DIR/lib/config.sh"
+export SD_MODE=run SD_DRY_RUN=0
 load_config
 
 manage_pause() {
   printf '\n'
-  installer_menu_read "  $(_menu_t choice) — Enter: " >/dev/null || true
+  installer_menu_read "  $(_menu_t press_enter) " >/dev/null || true
 }
 
 manage_run() {
