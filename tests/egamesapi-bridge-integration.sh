@@ -129,6 +129,7 @@ EOF
     # shellcheck disable=SC1090
     source "$module"
     # shellcheck disable=SC2317,SC2034
+    # shellcheck disable=SC2329
     sr_ask_port() { SR_ASKED_PORT="9999"; }
     if sr_setup; then
         echo "Mismatched setup port unexpectedly passed" >&2
