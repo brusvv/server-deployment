@@ -67,4 +67,12 @@ declare -gA MENU_TEXT=(
   [manage_root_required]="Для управления сервером запустите установщик через sudo."
   [manage_invalid]="Некорректный выбор."
   [press_enter]="Нажмите Enter, чтобы продолжить..."
+  [profile_standard_title]="Обычная установка Remnawave — Panel + Node"
+  [profile_standard_desc]="eGamesAPI Panel + локальная Node и страница подписки. Комбинированный режим не рекомендуется upstream для production."
+  [profile_extended_title]="Remnawave + дополнительные компоненты"
+  [profile_extended_desc]="Panel + Node, сетевой адаптер, MTProxyL, HAProxy и опциональный WARP/MASQUE. Комбинированный режим не рекомендуется upstream для production."
+  [profile_entry_title]="Каскад Remnawave — VPS A / Entry"
+  [profile_entry_desc]="Подготовка VPS A: проверки, резервная копия и базовые пакеты. Node, VLESS inbound и A→B маршрутизация не создаются."
+  [profile_exit_title]="Каскад Remnawave — VPS B / Panel + Exit"
+  [profile_exit_desc]="Panel и локальный Exit Node через eGamesAPI. MTProxyL опционален; живой A→B bridge автоматически не создаётся."
 )
