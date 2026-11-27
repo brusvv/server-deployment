@@ -40,7 +40,7 @@ while true; do
     result=$?
     if (( result == 2 )); then printf '\n%s\n' "$(_menu_t closed)"; exit 0; fi
     printf '\n%s\n' "$(_menu_t management_start)"
-    bash "$ROOT_DIR/manage.sh" || true
+    bash "$ROOT_DIR/installer/manage.sh"
   fi
 done
 
