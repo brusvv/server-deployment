@@ -225,6 +225,7 @@ fi
 
 tmp="$(mktemp "${config}.server-deployment.XXXXXX")"
 # shellcheck disable=SC2317 # Invoked by EXIT trap.
+# shellcheck disable=SC2329
 cleanup(){ rm -f -- "$tmp" "${new_file:-}" "${restore_file:-}"; }
 trap cleanup EXIT
 
