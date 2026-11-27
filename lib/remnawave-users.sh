@@ -162,7 +162,7 @@ remnawave_users_migrate() (
     local target_host journal_dir journal
     target_host="${target_url#https://}"
     target_host="${target_host//[^A-Za-z0-9._-]/_}"
-    journal_dir="/var/lib/server-manager/migrations"
+    journal_dir="/var/lib/server-deployment/migrations"
     if ! install -d -m 700 "$journal_dir"; then
         err "Не удалось создать каталог журнала миграции"; return 1
     fi
