@@ -41,7 +41,7 @@ manage_run() {
 
 manage_backup_restore() {
   local -a archives=()
-  local file choice
+  local choice
   shopt -s nullglob
   archives=("$BACKUP_DIR"/server-deployment-*.tar.gz)
   shopt -u nullglob
