@@ -67,4 +67,12 @@ declare -gA MENU_TEXT=(
   [manage_root_required]="Run the installer with sudo to manage this server."
   [manage_invalid]="Invalid selection."
   [press_enter]="Press Enter to continue..."
+  [profile_standard_title]="Standard Remnawave — Panel + Node"
+  [profile_standard_desc]="eGamesAPI Panel + local Node and subscription page. Upstream does not recommend the combined mode for production."
+  [profile_extended_title]="Remnawave + additional components"
+  [profile_extended_desc]="Panel + Node, network adapter, MTProxyL, HAProxy and optional WARP/MASQUE. Upstream does not recommend the combined mode for production."
+  [profile_entry_title]="Remnawave cascade — VPS A / Entry"
+  [profile_entry_desc]="Prepares VPS A: checks, backup and base packages. It does not install a Node, create a VLESS inbound or configure A→B routing."
+  [profile_exit_title]="Remnawave cascade — VPS B / Panel + Exit"
+  [profile_exit_desc]="Panel and local Exit Node through eGamesAPI. MTProxyL is optional; the live A→B bridge is not created automatically."
 )
