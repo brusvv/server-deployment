@@ -213,7 +213,7 @@ remnawave_users_migrate() (
             target_user_id_json="$target_user_id"
             if ! jq -cn --arg timestamp "$timestamp" --arg username "$username" \
                 --arg status "$result_status" --arg http_code "$http_code" \
-                --argjson source_user_id "$source_user_id" --argjson target_user_id "$target_user_id_json" \
+                --arg source_user_id "$source_user_id" --argjson target_user_id "$target_user_id_json" \
                 '{timestamp:$timestamp,username:$username,source_user_id:$source_user_id,target_user_id:$target_user_id,status:$status,http_code:$http_code}' >> "$journal"; then
                 journal_errors=$((journal_errors+1)); warn "Не удалось записать сверенное соответствие в журнал; дальнейшая обработка остановлена"; break
             fi
