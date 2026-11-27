@@ -41,7 +41,7 @@ This is a geographic split, not a full tunnel. The bridge is disabled by default
 - Optional HTTP → HTTPS redirects and ACME HTTP-01 routing in the HAProxy adapter.
 - Guarded eGamesAPI patchers for the Panel + local Exit topology and the optional bridge toggle/port policy.
 - Optional Cloudflare WARP over Xray MASQUE outbound management through Remnawave Config Profiles.
-- Project-managed backup create/list/restore actions.\n- Remnawave user migration between an existing source Panel and an existing target Panel, plus a read-only audit of related data.
+- Project-managed backup create/list/restore actions.\n- Remnawave user migration between existing Panels, with a read-only audit of related data.\n- Remnawave user migration between an existing source Panel and an existing target Panel, plus a read-only audit of related data.
 
 ### What it does not do automatically
 
@@ -195,6 +195,23 @@ export MTPROXYL_INSTALLER_LOCAL=/root/installers/reviewed-mtproxyl-installer.sh
 ```
 
 If MTProxyL, HAProxy integration or WARP/MASQUE is declined or unavailable, the stage is reported as **skipped**. A skipped optional stage is not reported as completed. Declining required system preparation or eGamesAPI installation stops the profile.
+
+## Remnawave user migration
+
+User migration is a management operation, separate from installation profiles. Open it with:
+
+```bash
+sudo ./manage.sh
+```
+
+Choose **2. Перенос пользователей Remnawave**. The migration menu provides:
+
+1. **Перенос пользователей Remnawave** — exports users from the local `/opt/remnawave` Panel and creates them on an already running target Panel through its HTTPS API. It validates source records and squad mapping, checks target username/short UUID conflicts, supports Dry-run and requires an explicit `yes` before Apply. A protected JSONL journal records source-to-target user ID mappings.
+2. **Аудит связанных данных Remnawave (только чтение)** — reports related-table aggregates and checks user/node mapping and orphan references without writing to either database.
+
+The target Panel must already exist. Create the required Internal Squads there with the same names as on the source. API scopes and exact migration coverage, limitations and safety behavior are documented in [the migration guide](docs/remnawave-user-migration.md).
+
+**Important:** traffic counters, HWID fingerprints, node usage history and subscription request history are not copied by the current migration. The audit is read-only and does not authorize direct database writes. A later related-data migration must remap both user IDs and node IDs and validate target-side conflicts before any write.
 
 ## A/B Shadowsocks bridge
 
