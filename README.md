@@ -143,7 +143,7 @@ Check-only is the default. It does not install packages, run external installers
 
 ## Installation workflow
 
-When started with no arguments in an interactive terminal, `./install.sh` opens the installation menu:
+When started with no arguments in an interactive terminal, `./install.sh` first asks for the interface language (English or Russian) on first launch and stores the choice in the invoking user’s `~/.config/server-deployment/selected_language` file with restrictive permissions. Later launches reuse that choice. The top-level menu separates **Install** from **Manage server**; the latter opens the existing management entry point. The installation menu then offers:
 
 1. **Обычная установка Remnawave** — eGamesAPI combined Panel + local Node mode (also includes its subscription page/reverse proxy); no additional repository components. Upstream warns this combined mode is not recommended for production.
 2. **Remnawave + дополнительные компоненты** — the extended single-host profile with the network adapter, MTProxyL, HAProxy integration and optional WARP/MASQUE.
