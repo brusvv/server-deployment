@@ -5,6 +5,7 @@ ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 export SD_ROOT="$ROOT_DIR"
 
 source "$ROOT_DIR/installer/menu.sh"
+source "$ROOT_DIR/installer/lang/en.sh"
 
 installer_menu_select_language() {
   while ! _menu_load_language; do
