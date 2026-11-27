@@ -14,7 +14,7 @@ sudo ./manage.sh
 
 ## Требования
 
-- Исходная панель в `/opt/remnawave` с `docker-compose.yml` и `.env`.
+- Исходная панель в каталоге `REMNAWAVE_DIR` из `config/services.env` (по умолчанию `/opt/remnawave`) с `docker-compose.yml` и `.env`.
 - Docker Compose, `jq`, `curl`.
 - API token целевой панели.
 - На целевой панели заранее созданы одноимённые Internal Squads.
