@@ -83,6 +83,7 @@ manage_menu() {
   local choice
   while true; do
     _menu_title "$(_menu_t manage_title)" "$(_menu_t manage_select)"
+    _menu_show_status
     _menu_section "$(_menu_t manage_title)"
     _menu_option '1.' "$(_menu_t manage_backup_create)"
     _menu_option '2.' "$(_menu_t manage_backup_list)"
