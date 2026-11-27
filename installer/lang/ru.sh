@@ -66,4 +66,5 @@ declare -gA MENU_TEXT=(
   [manage_failed]="Операция завершилась с ошибкой."
   [manage_root_required]="Для управления сервером запустите установщик через sudo."
   [manage_invalid]="Некорректный выбор."
+  [press_enter]="Нажмите Enter, чтобы продолжить..."
 )
