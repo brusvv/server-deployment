@@ -28,6 +28,7 @@ _menu_title() {
   _menu_style '1;36'; printf '  SERVER DEPLOYMENT'; _menu_reset
   _menu_style '2'; printf '  /  INSTALLATION MANAGER'; _menu_reset
   printf '\n  ──────────────────────────────────────────────────────\n'
+  printf '  %s\n' "$title"
   [[ -z "$subtitle" ]] || printf '  %s\n' "$subtitle"
 }
 
