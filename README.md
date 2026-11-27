@@ -374,7 +374,7 @@ The project backup stage supports:
 - List: `sudo env SD_ROOT=/opt/server-deployment bash /opt/server-deployment/modules/07-backup.sh list`
 - Restore: `sudo env SD_ROOT=/opt/server-deployment bash /opt/server-deployment/modules/07-backup.sh restore /var/backups/server-deployment/archive.tar.gz`
 
-Use the actual checkout path if it is not `/opt/server-deployment`. Restoration requires confirmation and may overwrite existing files. The default backup directory is `/var/backups/server-deployment`. Archives are created with restrictive permissions. Review the archive contents before restoring. Maintain a separate provider snapshot or off-server backup for critical data.
+Use the actual checkout path if it is not `/opt/server-deployment`. Restoration requires confirmation and may overwrite existing files inside the configured backup roots. Before extraction, the restore command validates every archive member: absolute/traversal paths, paths outside the configured roots, duplicate entries, symbolic/hard links, special files and empty archives are rejected. Extraction does not restore archived ownership or privileged permission bits. The default backup directory is `/var/backups/server-deployment`. Archives are created with restrictive permissions. Maintain a separate provider snapshot or off-server backup for critical data.
 
 ## Single-VPS testing
 
