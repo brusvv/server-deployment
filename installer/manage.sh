@@ -4,6 +4,11 @@ set -Eeuo pipefail
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 export SD_ROOT="$ROOT_DIR"
 
+if [[ ! -t 0 || ! -t 1 ]]; then
+  printf "ERROR: server management requires an interactive terminal.\\n" >&2
+  exit 2
+fi
+
 source "$ROOT_DIR/installer/menu.sh"
 source "$ROOT_DIR/installer/lang/en.sh"
 
