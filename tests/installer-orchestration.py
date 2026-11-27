@@ -327,7 +327,7 @@ def main():
     )
     assert_case(
         "decline profile confirmation",
-        "1\n1\n2\n0\n",
+        "1\n1\n2\n0\n0\n",
         [],
         output_contains=("Установщик закрыт",),
     )
