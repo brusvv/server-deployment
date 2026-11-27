@@ -60,7 +60,9 @@ _menu_show_status() {
   local host os docker panel
   host="$(hostname -f 2>/dev/null || hostname 2>/dev/null || printf 'unknown')"
   os='unknown'
-  if [[ -r /etc/os-release ]]; then . /etc/os-release; os="${PRETTY_NAME:-unknown}"; fi
+  if [[ -r /etc/os-release ]]; then
+    # shellcheck disable=SC1091
+    . /etc/os-release; os="${PRETTY_NAME:-unknown}"; fi
   if command -v docker >/dev/null 2>&1; then docker="$(_menu_t docker_found)"; else docker="$(_menu_t docker_missing)"; fi
   if [[ -f /opt/remnawave/docker-compose.yml || -f /opt/remnawave/compose.yml ]]; then panel="$(_menu_t compose_found)"; else panel="$(_menu_t compose_missing)"; fi
   printf '\n'; _menu_style '1'; printf '  %s' "$(_menu_t server_status)"; _menu_reset; printf '\n'
