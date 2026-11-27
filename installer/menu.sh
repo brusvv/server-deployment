@@ -96,6 +96,10 @@ _menu_option() {
   [[ -z "$description" ]] || printf '      %s\n' "$description"
 }
 
+_menu_warn() {
+  _menu_style '33'; printf '  WARN: %s\n' "$*"; _menu_reset
+}
+
 installer_menu_read() {
   local prompt="$1" answer
   [[ -r /dev/tty && -w /dev/tty ]] || return 1
@@ -147,12 +151,12 @@ installer_menu_select_profile() {
               return 0
               ;;
             0) break ;;
-            *) warn 'Некорректный выбор. Повторите.' ;;
+            *) _menu_warn 'Некорректный выбор. Повторите.' ;;
           esac
         done
         ;;
       0) return 2 ;;
-      *) warn 'Некорректный выбор. Повторите.' ;;
+      *) _menu_warn 'Некорректный выбор. Повторите.' ;;
     esac
   done
 }
@@ -166,7 +170,7 @@ installer_menu_confirm_profile() {
   _menu_section 'ЭТАПЫ УСТАНОВКИ'
   printf '  Обязательные и выбранные этапы:\n'
   printf '  - %s\n' "${PROFILE_STAGES[@]}"
-  if (("${#PROFILE_OPTIONAL_STAGES[@]:-0}" > 0)); then
+  if declare -p PROFILE_OPTIONAL_STAGES >/dev/null 2>&1 && (("${#PROFILE_OPTIONAL_STAGES[@]}" > 0)); then
     printf '\n  Необязательные этапы:\n'
     printf '  - %s\n' "${PROFILE_OPTIONAL_STAGES[@]}"
   fi
@@ -182,7 +186,7 @@ installer_menu_confirm_profile() {
       1) return 0 ;;
       2) return 1 ;;
       0) return 2 ;;
-      *) warn 'Некорректный выбор. Повторите.' ;;
+      *) _menu_warn 'Некорректный выбор. Повторите.' ;;
     esac
   done
 }
