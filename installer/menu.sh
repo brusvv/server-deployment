@@ -34,6 +34,7 @@ _menu_load_language() {
     chmod 700 "$(dirname "$file")"
     printf '%s\n' "$selected" > "$file"
     chmod 600 "$file"
+    if [[ -n "${SUDO_USER:-}" ]]; then chown "$SUDO_USER" "$(dirname "$file")" "$file"; fi
   fi
   # shellcheck disable=SC1090
   source "$SD_ROOT/installer/lang/$selected.sh"
