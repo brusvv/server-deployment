@@ -109,6 +109,58 @@ exit 0
         return bytes(output).decode(errors="replace"), stages, os.waitstatus_to_exitcode(status)
 
 
+
+def run_management_menu(language: str = "en"):
+    with tempfile.TemporaryDirectory(prefix="management-menu-test-") as tmp:
+        fixture = pathlib.Path(tmp)
+        for directory in ("installer/lang", "lib", "config", "modules", "checks"):
+            (fixture / directory).mkdir(parents=True, exist_ok=True)
+        shutil.copy(ROOT / "installer" / "manage.sh", fixture / "installer" / "manage.sh")
+        shutil.copy(ROOT / "installer" / "menu.sh", fixture / "installer" / "menu.sh")
+        shutil.copy(ROOT / "installer" / "lang" / "en.sh", fixture / "installer" / "lang" / "en.sh")
+        shutil.copy(ROOT / "installer" / "lang" / "ru.sh", fixture / "installer" / "lang" / "ru.sh")
+        shutil.copy(ROOT / "lib" / "common.sh", fixture / "lib" / "common.sh")
+        shutil.copy(ROOT / "lib" / "config.sh", fixture / "lib" / "config.sh")
+        (fixture / "config" / "ports.env").write_text('SS_BRIDGE_ENABLED="0"\\nSS_BRIDGE_PORT="9999"\\n', encoding="utf-8")
+        (fixture / "config" / "services.env").write_text(f'BACKUP_DIR="{fixture / "backups"}"\\n', encoding="utf-8")
+        env = os.environ.copy()
+        env["SD_LANGUAGE"] = language
+        pid, fd = pty.fork()
+        if pid == 0:
+            if os.geteuid() != 0:
+                os.execvpe("sudo", ["sudo", "-n", "env", f"SD_LANGUAGE={language}", "bash", str(fixture / "installer" / "manage.sh")], env)
+            os.execvpe("bash", ["bash", str(fixture / "installer" / "manage.sh")], env)
+        os.write(fd, b"0\\n")
+        output = bytearray()
+        status = None
+        deadline = time.time() + 10
+        while time.time() < deadline:
+            try:
+                chunk = os.read(fd, 4096)
+                if not chunk:
+                    break
+                output.extend(chunk)
+            except OSError:
+                break
+            waited, status = os.waitpid(pid, os.WNOHANG)
+            if waited == pid:
+                break
+        else:
+            os.kill(pid, 9)
+            raise AssertionError("management menu timed out")
+        try:
+            waited, final_status = os.waitpid(pid, os.WNOHANG)
+            if waited == pid:
+                status = final_status
+            elif waited == 0:
+                _, status = os.waitpid(pid, 0)
+        except ChildProcessError:
+            pass
+        rendered = bytes(output).decode(errors="replace")
+        assert status is not None and os.waitstatus_to_exitcode(status) == 0, rendered
+        expected = "SERVER MANAGEMENT" if language == "en" else "УПРАВЛЕНИЕ СЕРВЕРОМ"
+        assert expected in rendered, rendered
+
 def run_bridge_wizard(dry_run: bool = False):
     with tempfile.TemporaryDirectory(prefix="bridge-wizard-test-") as tmp:
         fixture = pathlib.Path(tmp)
@@ -220,6 +272,8 @@ def main():
         [],
         output_contains=("Установщик закрыт",),
     )
+    run_management_menu("en")
+    run_management_menu("ru")
     run_bridge_wizard()
     run_bridge_wizard(dry_run=True)
     print("Installer menu, profile orchestration and bridge wizard tests passed.")
