@@ -141,6 +141,16 @@ sudo ./install.sh --check
 
 Check-only is the default. It does not install packages, run external installers, register WARP or mutate a Remnawave Config Profile.
 
+## Server management
+
+Open the bilingual management menu independently:
+
+```bash
+sudo ./manage.sh
+```
+
+The menu exposes the existing guarded operations: create/list/restore project backups, configure WARP/MASQUE, run the read-only cascade audit for VPS A or B, configure the local Shadowsocks Bridge settings, and run read-only preflight checks. Backup restoration and bridge configuration require explicit interactive confirmation. The bridge wizard saves desired local settings only; it does not create live eGamesAPI routing, inbounds, outbounds or firewall rules.
+
 ## Installation workflow
 
 When started with no arguments in an interactive terminal, `./install.sh` first asks for the interface language (English or Russian) on first launch and stores the choice in the invoking user’s `~/.config/server-deployment/selected_language` file with restrictive permissions. Later launches reuse that choice. The top-level menu separates **Install** from **Manage server**. The management menu provides backup creation/listing/restoration, WARP/MASQUE management, a read-only A/B cascade audit, the Shadowsocks Bridge settings wizard (local configuration only), and read-only preflight checks. The installation menu then offers:
