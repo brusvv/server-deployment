@@ -269,3 +269,90 @@ This is a bounded host inspection, not proof that no similarly named file exists
 6. For the current one-Node/no-cascade test, decide explicitly whether MTProxyL is a required dependency or whether standalone HAProxy is a supported architecture. Keep the two modes separate rather than silently treating the existing MTProxyL adapter as a generic HAProxy installer.
 
 No packages were installed, containers changed, services restarted, ports moved, or Remnawave profiles modified during these inspections.
+
+## Architecture comparison: MTProxyL-managed HAProxy vs standalone HAProxy — 2026-11-27
+
+This comparison combines the current repository implementation, the operator's disposable-VM observations, and a review of the current upstream MTProxyL README/source. It is a design assessment; neither option has been installed or live-tested on this VM.
+
+### Option A — MTProxyL owns HAProxy
+
+There are two distinct MTProxyL arrangements which must not be conflated:
+
+1. **MTProxyL-managed HAProxy frontend.** Current MTProxyL upstream can install and manage its own HAProxy 3.2 build (the current source declares its own prefix, service and custom config paths). It uses HAProxy for MTProxyL's WEB/Selfmask and, in shared mode, SNI-based distribution between its WEB listener and the Telemt MTProto listener.
+2. **External HAProxy.** MTProxyL can instead generate a fragment for an already-existing HAProxy. In that mode MTProxyL does not install, start, own or manage the external HAProxy or its certificate. Its WEB listener must be protected by firewall and trusted-proxy settings.
+
+The repository's current modules/05-haproxy.sh is not a generic integration with either mode. It expects the MTProxyL-managed config, binary, settings and active systemd service at the configured paths; it edits a known MTProxyL config layout. It currently checks FRONT_SERVER='haproxy' and NGINX_CUSTOM_ENABLED='true'. Its Python patcher expects particular frontend/backend section names and one-bind/one-server shapes. Compatibility with the current upstream MTProxyL-generated HAProxy config must be demonstrated against a pinned upstream release before reusing this patcher.
+
+**What MTProxyL adds beyond HAProxy:** Telemt MTProto proxy management (users/secrets/links), engine installation/update/rollback, traffic/connection monitoring, backups, optional panel/bot, Selfmask and its website templates, WEB Proxy, and network/security features such as NFT SYN limiting, geoblocking and upstream routing. These are useful only if the operator actually wants those services/features on this VPS.
+
+**Benefits**
+- Reuses the existing repository's MTProxyL-oriented stage/config model, so less new HAProxy lifecycle code may be needed.
+- A single upstream manager owns its Telemt engine and its own frontend configuration.
+- If Telegram MTProto, Selfmask or MTProxyL WEB is a real requirement, these are integrated features rather than functionality the project must recreate.
+- MTProxyL's managed HAProxy build includes its own TLS/OpenSSL and static-site components; the upstream project documents this as its supported frontend choice.
+
+**Costs and risks**
+- Adds a second major service stack (MTProxyL/Telemt, settings/state, possible static-site service and optional panel/bot) even if only HAProxy routing is required.
+- Adds another upstream release/update lifecycle and configuration owner. The project must avoid two tools independently rewriting the same HAProxy file.
+- MTProxyL's shared frontend is designed around its own Telemt/WEB/Selfmask traffic. The required Remnawave SNI route and eGames/Nginx fallback must be integrated without breaking its default backend, PROXY protocol expectations, TLS handling or WEB routing.
+- The current repository's MTProxyL installer hand-off is an operator-supplied local script, not a pinned, fully automated integration. The current stage does not install MTProxyL by itself.
+- MTProxyL's latest upstream capabilities and generated config layout have evolved; the current repository adapter's assumptions need a compatibility audit and regression fixtures.
+
+### Option B — standalone HAProxy managed by this project
+
+The project installs/pins HAProxy itself, owns a complete project config and systemd unit, and routes only the services required by this deployment. MTProxyL is not installed.
+
+A minimal single-Node target would likely have:
+- Public TCP/443 owned by HAProxy.
+- Remnawave Xray moved to a loopback-only endpoint such as 127.0.0.1:1443.
+- SNI rules that send the configured Remnawave names to Xray using TCP/TLS passthrough.
+- A deliberately defined fallback for other SNI/no-SNI traffic, likely to the existing eGames Nginx endpoint/socket, after confirming the actual Nginx protocol and fallback behavior.
+- Public TCP/80 handling only if required for HTTP redirects/ACME; otherwise leave it with the existing owner or keep it closed.
+- No MTProto backend, Telemt listener, MTProxyL WEB listener, Selfmask or MTProxyL static backend unless separately requested.
+
+**Benefits**
+- Smallest runtime architecture when the requirement is only Xray SNI passthrough plus a web fallback.
+- One owner for the routing config: this repository. No dependency on MTProxyL settings, generated file layout or installer.
+- Simpler lifecycle and diagnostics: one pinned HAProxy binary/package, one systemd service, one managed config, explicit backend health checks and rollback.
+- Can be designed exactly around the actual Remnawave + eGames Nginx topology instead of adapting a Telegram proxy manager's topology.
+- Avoids installing an unused Telemt engine, its state and optional management components.
+
+**Costs and risks**
+- More initial implementation work: the repository currently has a conservative MTProxyL config patcher, not a complete standalone HAProxy installer/config generator/service manager.
+- The project must own HAProxy version pinning, binary/package provenance, systemd unit hardening, config validation, backups/rollback, reload checks, upgrade strategy and uninstall behavior.
+- TLS passthrough/SNI inspection and fallback behavior must be designed and tested explicitly. HAProxy should not terminate TLS for the Remnawave Xray route. Any PROXY protocol header must only be enabled if the receiving backend is configured to accept it.
+- eGames Nginx fallback must be validated at the protocol level. The existence of /dev/shm/nginx.sock alone does not establish whether it is a stream socket, what protocol it accepts, or how it handles TLS and SNI.
+- If the operator later wants Telegram MTProto, Selfmask or MTProxyL WEB, those become a separate optional component and require an explicit integration design.
+
+### Comparison for the current one-Node test
+
+| Criterion | MTProxyL-managed HAProxy | Standalone HAProxy |
+|---|---|---|
+| Initial setup on this VM | More components to install and configure | Fewer runtime components |
+| Reuse of current repository code | Higher, but adapter compatibility with current upstream config is unverified | Lower; requires a new standalone implementation |
+| Runtime footprint | Higher: MTProxyL + Telemt and related optional services | Lower: HAProxy only |
+| Ownership of routing config | Shared boundary: MTProxyL generates/owns base config; project patches it | Single owner: this project |
+| Telegram MTProto | Included | Not included |
+| Selfmask / MTProxyL WEB | Included as MTProxyL features | Must be implemented separately or omitted |
+| Xray + eGames Nginx routing | Requires careful extension of MTProxyL's existing SNI routes | Can be purpose-built for these backends |
+| Long-term maintenance | Depends on MTProxyL config compatibility and upstream changes | Depends on this project's HAProxy maintenance |
+| Best fit | VPS is also intended to run Telegram MTProto/MTProxyL features | VPS only needs Remnawave ingress and web fallback |
+
+### Provisional recommendation
+
+For the scope currently confirmed — one Remnawave Node, no cascade/bridge, existing eGames Nginx, and a need to route public 443 between Xray and a web fallback — **standalone HAProxy is likely the simpler final architecture and has the smaller runtime footprint**, provided Telegram MTProto, MTProxyL Selfmask and MTProxyL WEB are not requirements.
+
+This does not mean it is less work today: the repository must first gain a complete, tested standalone HAProxy lifecycle. The existing MTProxyL adapter cannot simply be pointed at /etc/haproxy/haproxy.cfg.
+
+Choose MTProxyL-managed HAProxy if the same VPS is also intended to run MTProto/Telemt or if MTProxyL's Selfmask/WEB features are specifically wanted. In that case, prefer MTProxyL's own supported frontend manager and integrate the Remnawave route through a version-pinned, tested extension point; do not assume the current patcher is compatible with every current upstream config.
+
+### Decisions and validation required before implementation
+
+1. Confirm whether Telegram MTProto/Telemt is a requirement on this VPS. If not, do not add MTProxyL solely to obtain HAProxy.
+2. Inspect the actual eGames Nginx socket type and the Nginx configuration's fallback behavior, without exposing certificate/key contents.
+3. Confirm the desired behavior for unknown SNI, absent SNI, and HTTP on port 80. Do not route arbitrary traffic to Xray by default without an explicit policy.
+4. Determine whether the Remnawave inbound uses TLS/REALITY and verify the exact SNI visible to HAProxy; keep the Xray path as TCP passthrough.
+5. Build a disposable test config and validate HAProxy's config syntax, listener ownership, SNI matching, Xray handshake, Nginx fallback, and rollback before moving the live Xray listener.
+6. If choosing MTProxyL, pin an exact upstream release and add a fixture from its generated HAProxy config; test that the project's SNI rule survives MTProxyL regeneration/update. If choosing standalone, add a complete managed config template and service lifecycle instead of reusing the MTProxyL patcher.
+
+No packages, services, ports, Remnawave profiles or VM configuration were changed as part of this comparison.
