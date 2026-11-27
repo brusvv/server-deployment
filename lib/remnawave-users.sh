@@ -49,7 +49,7 @@ remnawave_users_migrate() (
     pg_user="${pg_user:-postgres}"
     pg_db="${pg_db:-postgres}"
     sql="SELECT json_build_object('users', COALESCE((
-      SELECT json_agg((to_jsonb(u) || jsonb_build_object('active_squad_names',
+      SELECT json_agg((to_jsonb(u) || jsonb_build_object('id',u.id::text,'active_squad_names',
         COALESCE((SELECT json_agg(s.name ORDER BY s.name)
           FROM internal_squad_members m JOIN internal_squads s ON s.uuid=m.internal_squad_uuid
           WHERE m.user_id=u.id), '[]'::json))) ORDER BY u.id) FROM users u
@@ -73,7 +73,7 @@ remnawave_users_migrate() (
           [ $names[] as $n | ($target[0].response.internalSquads[] | select(.name == $n) | .uuid) ] as $mapped |
           if ($u.username|test("^[A-Za-z0-9_-]{3,36}$")|not) then error("invalid username")
           elif (($u.tag // "") != "" and (($u.tag|length)>16 or ($u.tag|test("^[A-Z0-9_]+$")|not))) then error("invalid tag")
-          elif ($u.id|type) != "number" then error("missing source user id")
+          elif (($u.id|type) != "string") or (($u.id|test("^[0-9]+$")|not)) then error("invalid source user id")
           elif $u.expire_at == null then error("missing expiration")
           elif ($u.short_uuid == null or $u.short_uuid == "") then error("missing short UUID")
           elif (($u.traffic_limit_bytes|tonumber? // 0) > 9007199254740991) then error("traffic limit exceeds JS safe integer")
@@ -142,7 +142,7 @@ remnawave_users_migrate() (
             target_id=$(jq -er '.response.id | select(type == "number" and . <= 9007199254740991)' "$response" 2>/dev/null) || {
                 err "Целевой API не вернул числовой ID для $value"; return 1;
             }
-            jq -cn --argjson source_user_id "$source_id" --argjson target_user_id "$target_id" \
+            jq -cn --arg source_user_id "$source_id" --argjson target_user_id "$target_id" \
                 --arg username "$value" \
                 '{source_user_id:$source_user_id,target_user_id:$target_user_id,username:$username}' >> "$target_matches"
         elif [ "$check_code" = "404" ]; then
@@ -205,7 +205,7 @@ remnawave_users_migrate() (
         local source_user_id target_user_id target_user_id_json matched
         source_user_id=$(printf '%s' "$line" | jq -r '.sourceUserId')
         timestamp=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
-        matched=$(jq -s --argjson source_id "$source_user_id" '[.[] | select(.source_user_id == $source_id)] | first // empty' "$target_matches")
+        matched=$(jq -s --arg source_id "$source_user_id" '[.[] | select(.source_user_id == $source_id)] | first // empty' "$target_matches")
         if [ -n "$matched" ]; then
             target_user_id=$(printf '%s' "$matched" | jq -r '.target_user_id')
             skipped=$((skipped+1)); result_status="RECONCILED"; http_code="200"
@@ -237,7 +237,7 @@ remnawave_users_migrate() (
         target_user_id_json="${target_user_id:-null}"
         if ! jq -cn --arg timestamp "$timestamp" --arg username "$username" \
             --arg status "$result_status" --arg http_code "$http_code" \
-            --argjson source_user_id "$source_user_id" \
+            --arg source_user_id "$source_user_id" \
             --argjson target_user_id "$target_user_id_json" \
             '{timestamp:$timestamp,username:$username,source_user_id:$source_user_id,target_user_id:$target_user_id,status:$status,http_code:$http_code}' >> "$journal"; then
             journal_errors=$((journal_errors+1))
