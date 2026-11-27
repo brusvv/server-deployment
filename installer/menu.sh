@@ -57,15 +57,15 @@ _menu_show_status() {
   fi
 
   if command -v docker >/dev/null 2>&1; then
-    docker='доступен'
+    docker='команда доступна'
   else
     docker='не установлен'
   fi
 
   if [[ -f /opt/remnawave/docker-compose.yml || -f /opt/remnawave/compose.yml ]]; then
-    panel='найдена конфигурация'
+    panel='найден'
   else
-    panel='не обнаружена'
+    panel='не найден'
   fi
 
   printf '\n'
@@ -73,13 +73,13 @@ _menu_show_status() {
   printf '\n'
   _menu_status_value 'Хост:' "$host"
   _menu_status_value 'ОС:' "$os"
-  if [[ "$docker" == 'доступен' ]]; then
-    _menu_status_value 'Docker:' "$docker" good
+  if [[ "$docker" == 'команда доступна' ]]; then
+    _menu_status_value 'Docker CLI:' "$docker" good
   else
     _menu_status_value 'Docker:' "$docker" warn
   fi
   if [[ "$panel" == 'найдена конфигурация' ]]; then
-    _menu_status_value 'Remnawave:' "$panel" good
+    _menu_status_value 'Compose-файл:' "$panel" good
   else
     _menu_status_value 'Remnawave:' "$panel" warn
   fi
