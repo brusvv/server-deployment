@@ -22,12 +22,12 @@ case "$action" in
   chmod 0600 "$archive"
   info "Backup created: $archive"
   ;;
- list) [[ -d "$BACKUP_DIR" ]] || exit 0; find "$BACKUP_DIR" -maxdepth 1 -type f -name '*.tar.gz' -printf '%TY-%Tm-%Td %TH:%TM %p\n' | sort;;
+ list) [[ -d "$BACKUP_DIR" ]] || exit 0; find "$BACKUP_DIR" -maxdepth 1 -type f -name '*.tar.gz' -printf '%TY-%Tm-%Td %TH:%TM %p\\n' | sort;;
  restore)
-  [[ -n "${2:-}" && -f "$2" ]] || die "Usage: $0 restore /path/to/archive.tar.gz"
-  tar -tzf "$2"
-  confirm "Restore this archive to filesystem root? Existing files may be overwritten." || exit 0
-  tar --numeric-owner -xzf "$2" -C /
+  [[ -n "${2:-}" && -f "$2" && ! -L "$2" ]] || die "Usage: $0 restore /path/to/archive.tar.gz (regular file required)"
+  python3 "$SD_ROOT/lib/backup_archive.py" "$2" "$REMNAWAVE_DIR" "${MTProxyL_DIR:-/opt/mtproxyl}" "$HAPROXY_CONFIG" "$SD_ROOT/config" || die "Backup archive validation failed; nothing was restored"
+  confirm "Restore this validated archive? Existing files inside configured backup roots may be overwritten." || exit 0
+  tar --numeric-owner --no-same-owner --no-same-permissions --no-overwrite-dir -xzf "$2" -C /
   ;;
  *) die "Usage: $0 [create|list|restore /path/to/archive.tar.gz]";;
 esac
