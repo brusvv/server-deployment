@@ -180,18 +180,20 @@ def main():
         "standard",
         "1\n1\n",
         ["preflight", "backup", "system", "remnawave", "validate"],
+        output_contains=("SERVER DEPLOYMENT", "СОСТОЯНИЕ СЕРВЕРА", "Одиночный сервер", "ПОДТВЕРЖДЕНИЕ УСТАНОВКИ", "До подтверждения изменения системы не выполняются"),
     )
     assert_case(
         "extended with optional skips",
         "2\n1\n",
         ["preflight", "backup", "system", "remnawave", "adapter", "mtproxyl", "haproxy", "validate", "warp-masque"],
         optional="mtproxyl haproxy warp-masque",
-        output_contains=("Результат этапа mtproxyl: пропущен", "Результат этапа haproxy: пропущен", "Результат этапа warp-masque: пропущен"),
+        output_contains=("Расширенная установка", "Результат этапа mtproxyl: пропущен", "Результат этапа haproxy: пропущен", "Результат этапа warp-masque: пропущен"),
     )
     assert_case(
         "cascade Entry",
         "3\n1\n1\n",
         ["preflight", "backup", "system", "validate"],
+        output_contains=("КАСКАДНАЯ УСТАНОВКА", "VPS A — Entry", "VPS B — Panel + Exit"),
     )
     assert_case(
         "cascade Panel + Exit",
